@@ -1,0 +1,60 @@
+/* 일요일 숫자 및 헤더 (빨간색) */
+.fc-day-sun .fc-daygrid-day-number,
+.fc-day-sun .fc-col-header-cell-cushion {
+  color: #d32f2f !important;
+}
+
+/* 토요일 숫자 및 헤더 (파란색) */
+.fc-day-sat .fc-daygrid-day-number,
+.fc-day-sat .fc-col-header-cell-cushion {
+  color: #1976d2 !important;
+}
+
+
+.fc .fc-daygrid-day-top {
+    display: flex !important; /* none -> flex 로 변경 */
+    flex-direction: column;
+    width: 100% !important;
+    height: 100% !important;
+    padding: 0 !important;
+}
+
+/* 혹시 모를 내부 링크 태그 스타일 초기화 */
+.fc .fc-daygrid-day-number {
+    width: 100%;
+    height: 100%;
+    padding: 0 !important;
+    text-decoration: none !important;
+}
+
+/* 4. 불필요한 이벤트/컨텐츠만 숨김 */
+/* 주의: .fc-daygrid-day-bg는 지우면 안 됨 (드래그 하이라이트 역할) */
+.fc .fc-daygrid-day-events,
+.fc .fc-daygrid-day-content {
+    display: none !important; 
+}
+
+/* (선택사항) 드래그 색상이 잘 보이도록 배경 레이어 위치 보정 */
+.fc .fc-daygrid-day-bg {
+    display: block !important;
+    z-index: 1; /* 컨텐츠 뒤에 깔리도록 */
+}
+
+/* 날짜 칸 내부의 프레임 강제 확장 */
+.fc-daygrid-day-frame {
+    height: 100% !important;
+    min-height: 100% !important;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 날짜 칸 내용물 영역 */
+.fc-daygrid-day-events {
+    flex-grow: 1;
+    margin: 0 !important;
+}
+
+/* 스크롤바가 생기지 않게 */
+.fc-daygrid-day-top {
+    flex-shrink: 0;
+}
