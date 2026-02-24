@@ -9,8 +9,9 @@ import { useTheme } from '@mui/material/styles';
 import SettingsIcon from '@mui/icons-material/Settings';
 import { useTranslation } from 'react-i18next';
 
-// 공통 상단바 컴포넌트 임포트
+// ✅ 공통 컴포넌트 임포트
 import SearchFilterBar from '../../components/common/SearchFilterBar';
+import CommonDialog from '../../components/common/CommonDialog';
 
 const VehiclePage = () => {
   const { t } = useTranslation();
@@ -165,10 +166,8 @@ const VehiclePage = () => {
   };
 
   return (
-    // 표 높이 유지: height 85vh와 flex 설정 유지
-    <Box sx={{ p: 2, height: '85vh', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ p: 2, height: '100vh', display: 'flex', flexDirection: 'column' }}>
       
-      {/* 공통 SearchFilterBar 적용 (지저분한 Stack 코드 대체) */}
       <SearchFilterBar 
         title={t('menu.vehicle_mgmt')}
         searchQuery={searchText}
@@ -178,42 +177,38 @@ const VehiclePage = () => {
         searchPlaceholder={t('vehicle.search_placeholder')}
       />
 
-      {/* 표 영역 꽉 차게 렌더링 */}
       <Box sx={{ flexGrow: 1, width: '100%', minHeight: 0 }}>
         <DataTable columns={columns} rows={filteredVehicles} onRowClick={handleRowClick} />
       </Box>
 
-      {/* 정보 수정/등록 다이얼로그 (기존 로직 보존) */}
-      <Dialog open={open} onClose={() => setOpen(false)}>
-        <DialogTitle sx={{ fontWeight: 'bold' }}>{isEdit ? t('vehicle.edit') : t('vehicle.register')}</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 4, pb: 1, minWidth: 420 }}>
-          <TextField label={t('vehicle.plate')} value={formData.licensePlate} disabled={isEdit} fullWidth onChange={(e) => setFormData({...formData, licensePlate: e.target.value})} sx={{ mt: 2 }} />
-          <TextField label={t('vehicle.model')} value={formData.vehicleName} fullWidth onChange={(e) => setFormData({...formData, vehicleName: e.target.value})} />
-          <TextField label={t('vehicle.mileage')} type="number" value={formData.mileage} fullWidth onChange={(e) => setFormData({...formData, mileage: e.target.value})} />
-          <TextField select label={t('vehicle.status')} value={formData.status} fullWidth onChange={(e) => setFormData({...formData, status: e.target.value})}>
-            {statusOptions.map(opt => <MenuItem key={opt.CONTENT_CODE} value={opt.CONTENT_CODE}>{opt.CODE_NAME}</MenuItem>)}
-          </TextField>
-          <FormControlLabel control={<Checkbox checked={formData.isManaged === 'Y'} onChange={(e) => setFormData({ ...formData, isManaged: e.target.checked ? 'Y' : 'N' })} />} label={t('vehicle.managed_checkbox')} />
-          
-          {isEdit && (
-            <>
-              <Divider sx={{ my: 1 }} />
-              <Button variant="outlined" color="secondary" fullWidth startIcon={<SettingsIcon />} onClick={handleOpenManagementSettings} sx={{ py: 1.2, fontWeight: 'bold' }}>
-                {t('vehicle.maintenance_settings_btn')}
-              </Button>
-            </>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ justifyContent: 'space-between', px: 3, pb: 3 }}>
-          <Box>{isEdit && <Button onClick={handleDelete} color="error" variant="outlined">{t('common.delete')}</Button>}</Box>
-          <Box>
-            <Button onClick={() => setOpen(false)} sx={{ mr: 1.5 }}>{t('common.cancel')}</Button>
-            <Button onClick={handleSave} variant="contained" size="large">{isEdit ? t('common.save_edit') : t('common.register')}</Button>
-          </Box>
-        </DialogActions>
-      </Dialog>
+      {/* 정보 수정/등록 다이얼로그 (CommonDialog로 교체!) */}
+      <CommonDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        title={isEdit ? t('vehicle.edit') : t('vehicle.register')}
+        isEdit={isEdit}
+        onSave={handleSave}
+        onDelete={handleDelete}
+      >
+        <TextField label={t('vehicle.plate')} value={formData.licensePlate} disabled={isEdit} fullWidth onChange={(e) => setFormData({...formData, licensePlate: e.target.value})} />
+        <TextField label={t('vehicle.model')} value={formData.vehicleName} fullWidth onChange={(e) => setFormData({...formData, vehicleName: e.target.value})} />
+        <TextField label={t('vehicle.mileage')} type="number" value={formData.mileage} fullWidth onChange={(e) => setFormData({...formData, mileage: e.target.value})} />
+        <TextField select label={t('vehicle.status')} value={formData.status} fullWidth onChange={(e) => setFormData({...formData, status: e.target.value})}>
+          {statusOptions.map(opt => <MenuItem key={opt.CONTENT_CODE} value={opt.CONTENT_CODE}>{opt.CODE_NAME}</MenuItem>)}
+        </TextField>
+        <FormControlLabel control={<Checkbox checked={formData.isManaged === 'Y'} onChange={(e) => setFormData({ ...formData, isManaged: e.target.checked ? 'Y' : 'N' })} />} label={t('vehicle.managed_checkbox')} />
+        
+        {isEdit && (
+          <>
+            <Divider sx={{ my: 1 }} />
+            <Button variant="outlined" color="secondary" fullWidth startIcon={<SettingsIcon />} onClick={handleOpenManagementSettings} sx={{ py: 1.2, fontWeight: 'bold' }}>
+              {t('vehicle.maintenance_settings_btn')}
+            </Button>
+          </>
+        )}
+      </CommonDialog>
 
-      {/* 점검 주기 설정 다이얼로그 (기존 로직 보존) */}
+      {/* 점검 주기 설정 다이얼로그 (커스텀 디자인이 있어 원본 보존) */}
       <Dialog open={managementSettingsOpen} onClose={() => setManagementSettingsOpen(false)}>
         <DialogTitle sx={{ bgcolor: 'secondary.main', color: 'white', fontWeight: 'bold' }}>
           {t('vehicle.maintenance_settings_title')} ({formData.licensePlate})
@@ -233,6 +228,7 @@ const VehiclePage = () => {
           <Button variant="contained" color="secondary" onClick={handleSaveManagementSettings}>{t('vehicle.save_settings')}</Button>
         </DialogActions>
       </Dialog>
+
     </Box>
   );
 };

@@ -116,7 +116,7 @@ const HistoryPage = () => {
 
   return (
     // 표 높이 유지: height 85vh와 flex 설정 유지 (모바일 스크롤 여유 pb: 10 보존)
-    <Box sx={{ p: 2, pb: { xs: 10, md: 2 }, height: '85vh', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ p: 2, pb: { xs: 10, md: 2 }, height: '100vh', display: 'flex', flexDirection: 'column' }}>
       
       {/* SearchFilterBar 적용 (검색/버튼 없이 콤보박스만 자식으로 전달) */}
       <SearchFilterBar title={t('history.title')}>

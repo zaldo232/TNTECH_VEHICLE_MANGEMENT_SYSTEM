@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import DataTable from '../../components/common/DataTable';
 import axios from 'axios';
-import { 
-  Box, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions 
-} from '@mui/material';
+import { Box, TextField } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 
-// ✅ 공통 상단바 컴포넌트 임포트
+// 공통 컴포넌트 임포트
 import SearchFilterBar from '../../components/common/SearchFilterBar';
+import CommonDialog from '../../components/common/CommonDialog';
 
 const GroupCodePage = () => {
   const { t } = useTranslation();
@@ -117,10 +116,8 @@ const GroupCodePage = () => {
   };
 
   return (
-    // ✅ 표 높이 유지: height 85vh와 flex 설정 유지
-    <Box sx={{ p: 2, height: '85vh', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ p: 2, height: '100vh', display: 'flex', flexDirection: 'column' }}>
       
-      {/* ✅ 공통 SearchFilterBar 적용 */}
       <SearchFilterBar 
         title={t('groupcode.title')}
         searchQuery={searchText}
@@ -130,7 +127,6 @@ const GroupCodePage = () => {
         searchPlaceholder={t('groupcode.search_placeholder')}
       />
 
-      {/* ✅ 표 영역 꽉 차게 렌더링 */}
       <Box sx={{ flexGrow: 1, width: '100%', minHeight: 0 }}>
         <DataTable 
           columns={columns} 
@@ -140,54 +136,39 @@ const GroupCodePage = () => {
         />
       </Box>
 
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle fontWeight="bold">
-          {isEdit ? t('groupcode.edit') : t('groupcode.register')}
-        </DialogTitle>
-        <DialogContent dividers>
-          <Box component="form" sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <TextField 
-              label={`${t('groupcode.code')} *`}
-              name="groupCode" 
-              value={formData.groupCode} 
-              onChange={handleChange} 
-              fullWidth 
-              disabled={isEdit} 
-              helperText={isEdit ? t('groupcode.cannot_edit_code') : t('groupcode.code_helper')}
-            />
-            <TextField 
-              label={`${t('groupcode.name')} *`}
-              name="groupName" 
-              value={formData.groupName} 
-              onChange={handleChange} 
-              fullWidth 
-            />
-            <TextField 
-              label={t('groupcode.description')}
-              name="description" 
-              value={formData.description} 
-              onChange={handleChange} 
-              fullWidth 
-            />
-          </Box>
-        </DialogContent>
-        
-        <DialogActions sx={{ justifyContent: 'space-between', px: 3, pb: 2 }}>
-          <Box>
-            {isEdit && (
-              <Button onClick={handleDelete} color="error" variant="outlined">
-                {t('common.delete')}
-              </Button>
-            )}
-          </Box>
-          <Box>
-            <Button onClick={() => setOpen(false)} sx={{ mr: 1 }}>{t('common.cancel')}</Button>
-            <Button onClick={handleSave} variant="contained">
-              {isEdit ? t('common.save_edit') : t('common.register')}
-            </Button>
-          </Box>
-        </DialogActions>
-      </Dialog>
+      <CommonDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        title={isEdit ? t('groupcode.edit') : t('groupcode.register')}
+        isEdit={isEdit}
+        onSave={handleSave}
+        onDelete={handleDelete}
+      >
+        <TextField 
+          label={`${t('groupcode.code')} *`}
+          name="groupCode" 
+          value={formData.groupCode} 
+          onChange={handleChange} 
+          fullWidth 
+          disabled={isEdit} 
+          helperText={isEdit ? t('groupcode.cannot_edit_code') : t('groupcode.code_helper')}
+        />
+        <TextField 
+          label={`${t('groupcode.name')} *`}
+          name="groupName" 
+          value={formData.groupName} 
+          onChange={handleChange} 
+          fullWidth 
+        />
+        <TextField 
+          label={t('groupcode.description')}
+          name="description" 
+          value={formData.description} 
+          onChange={handleChange} 
+          fullWidth 
+        />
+      </CommonDialog>
+      
     </Box>
   );
 };

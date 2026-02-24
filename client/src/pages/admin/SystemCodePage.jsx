@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import DataTable from '../../components/common/DataTable';
 import axios from 'axios';
-import { 
-  Box, Button, TextField, Dialog, DialogTitle, DialogContent, 
-  DialogActions, FormControl, InputLabel, Select, MenuItem 
-} from '@mui/material';
+import { Box, TextField, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 
-// ✅ 공통 상단바 컴포넌트 임포트
+// 공통 컴포넌트 임포트
 import SearchFilterBar from '../../components/common/SearchFilterBar';
+import CommonDialog from '../../components/common/CommonDialog';
 
 const SystemCodePage = () => {
   const { t } = useTranslation();
@@ -107,10 +105,8 @@ const SystemCodePage = () => {
   };
 
   return (
-    // ✅ 표 높이 유지: height 85vh와 flex 설정 유지
-    <Box sx={{ p: 2, height: '85vh', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ p: 2, height: '100vh', display: 'flex', flexDirection: 'column' }}>
       
-      {/* ✅ 공통 SearchFilterBar 적용 */}
       <SearchFilterBar 
         title={t('menu.code_mgmt')}
         searchQuery={searchText}
@@ -120,7 +116,6 @@ const SystemCodePage = () => {
         searchPlaceholder={t('code.search_placeholder')}
       />
 
-      {/* ✅ 표 영역 꽉 차게 렌더링 */}
       <Box sx={{ flexGrow: 1, width: '100%', minHeight: 0 }}>
         <DataTable 
           columns={columns} 
@@ -130,36 +125,30 @@ const SystemCodePage = () => {
         />
       </Box>
 
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle fontWeight="bold">{isEdit ? t('menu.code_edit') : t('menu.code_register')}</DialogTitle>
-        <DialogContent dividers>
-          <Box component="form" sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <FormControl fullWidth required disabled={isEdit}>
-              <InputLabel>{t('code.group')}</InputLabel>
-              <Select name="groupCode" value={formData.groupCode} label={t('code.group')} onChange={handleChange}>
-                {groupCodeList.map((group) => (
-                  <MenuItem key={group.GROUP_CODE} value={group.GROUP_CODE}>
-                    {group.GROUP_NAME} ({group.GROUP_CODE})
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <TextField label={t('code.content')} name="contentCode" value={formData.contentCode} onChange={handleChange} fullWidth required disabled={isEdit} helperText={isEdit ? t('code.cannot_edit') : ""} />
-            <TextField label={t('code.name')} name="codeName" value={formData.codeName} onChange={handleChange} fullWidth required />
-            <TextField label={t('code.sort')} name="sortOrder" type="number" value={formData.sortOrder} onChange={handleChange} fullWidth />
-          </Box>
-        </DialogContent>
-        
-        <DialogActions sx={{ justifyContent: 'space-between', px: 3, pb: 2 }}>
-          <Box>
-            {isEdit && (<Button onClick={handleDelete} color="error" variant="outlined">{t('common.delete')}</Button>)}
-          </Box>
-          <Box>
-            <Button onClick={() => setOpen(false)} sx={{ mr: 1 }}>{t('common.cancel')}</Button>
-            <Button onClick={handleSave} variant="contained">{isEdit ? t('common.save_edit') : t('common.register')}</Button>
-          </Box>
-        </DialogActions>
-      </Dialog>
+      {/* 팝업 껍데기 제거: 알맹이만 남았습니다! */}
+      <CommonDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        title={isEdit ? t('menu.code_edit') : t('menu.code_register')}
+        isEdit={isEdit}
+        onSave={handleSave}
+        onDelete={handleDelete}
+      >
+        <FormControl fullWidth required disabled={isEdit}>
+          <InputLabel>{t('code.group')}</InputLabel>
+          <Select name="groupCode" value={formData.groupCode} label={t('code.group')} onChange={handleChange}>
+            {groupCodeList.map((group) => (
+              <MenuItem key={group.GROUP_CODE} value={group.GROUP_CODE}>
+                {group.GROUP_NAME} ({group.GROUP_CODE})
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <TextField label={t('code.content')} name="contentCode" value={formData.contentCode} onChange={handleChange} fullWidth required disabled={isEdit} helperText={isEdit ? t('code.cannot_edit') : ""} />
+        <TextField label={t('code.name')} name="codeName" value={formData.codeName} onChange={handleChange} fullWidth required />
+        <TextField label={t('code.sort')} name="sortOrder" type="number" value={formData.sortOrder} onChange={handleChange} fullWidth />
+      </CommonDialog>
+      
     </Box>
   );
 };
