@@ -6,10 +6,11 @@ import {
   DialogActions, MenuItem, Stack, InputAdornment, FormControlLabel, Checkbox, Typography, Divider, useMediaQuery 
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import AddIcon from '@mui/icons-material/Add'; 
-import SearchIcon from '@mui/icons-material/Search';
 import SettingsIcon from '@mui/icons-material/Settings';
 import { useTranslation } from 'react-i18next';
+
+// 공통 상단바 컴포넌트 임포트
+import SearchFilterBar from '../../components/common/SearchFilterBar';
 
 const VehiclePage = () => {
   const { t } = useTranslation();
@@ -30,7 +31,7 @@ const VehiclePage = () => {
   const [managementSettingsOpen, setManagementSettingsOpen] = useState(false);
   const [managementSettings, setManagementSettings] = useState([]);
 
-  // 컬럼 정의 (기존 경고/주의 로직 보존)
+  // 컬럼 정의 (기존 경고/주의 로직 완벽 보존)
   const columns = [
     { field: 'LICENSE_PLATE', headerName: t('vehicle.plate'), width: 130 },
     { field: 'VEHICLE_NAME', headerName: t('vehicle.model'), width: 150 },
@@ -99,6 +100,12 @@ const VehiclePage = () => {
     setFilteredVehicles(filtered);
   };
 
+  const handleOpenAdd = () => {
+    setIsEdit(false); 
+    setFormData({ licensePlate: '', vehicleName: '', mileage: 0, status: 'AVAILABLE', isManaged: 'Y' }); 
+    setOpen(true);
+  };
+
   const handleRowClick = (row) => {
     setIsEdit(true);
     setFormData({ 
@@ -158,38 +165,23 @@ const VehiclePage = () => {
   };
 
   return (
-    <Box sx={{ p: 2 }}>
-      {/* ✅ [수정] 레이아웃 가이드에 맞춘 제목 및 우측 컨트롤 영역 */}
-      <Stack 
-        direction={{ xs: 'column', md: 'row' }} 
-        spacing={2} 
-        sx={{ mb: 2, justifyContent: 'space-between', alignItems: { xs: 'stretch', md: 'center' }, minHeight: 40 }}
-      >
-        <Typography variant="h5" fontWeight="bold">
-          {t('menu.vehicle_mgmt')}
-        </Typography>
+    // 표 높이 유지: height 85vh와 flex 설정 유지
+    <Box sx={{ p: 2, height: '85vh', display: 'flex', flexDirection: 'column' }}>
+      
+      {/* 공통 SearchFilterBar 적용 (지저분한 Stack 코드 대체) */}
+      <SearchFilterBar 
+        title={t('menu.vehicle_mgmt')}
+        searchQuery={searchText}
+        onSearchChange={handleSearch}
+        onAdd={handleOpenAdd}
+        addBtnText={t('vehicle.register')}
+        searchPlaceholder={t('vehicle.search_placeholder')}
+      />
 
-        <Stack direction="row" spacing={1} alignItems="center">
-          <TextField
-            placeholder={t('vehicle.search_placeholder')}
-            size="small"
-            value={searchText}
-            onChange={handleSearch}
-            InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }}
-            sx={{ width: { xs: '100%', sm: 300 }, bgcolor: 'background.paper' }}
-          />
-          <Button 
-            variant="contained" 
-            startIcon={<AddIcon />} 
-            onClick={() => { setIsEdit(false); setFormData({ licensePlate: '', vehicleName: '', mileage: 0, status: 'AVAILABLE', isManaged: 'Y' }); setOpen(true); }}
-            sx={{ whiteSpace: 'nowrap' }}
-          >
-            {t('vehicle.register')}
-          </Button>
-        </Stack>
-      </Stack>
-
-      <DataTable columns={columns} rows={filteredVehicles} onRowClick={handleRowClick} />
+      {/* 표 영역 꽉 차게 렌더링 */}
+      <Box sx={{ flexGrow: 1, width: '100%', minHeight: 0 }}>
+        <DataTable columns={columns} rows={filteredVehicles} onRowClick={handleRowClick} />
+      </Box>
 
       {/* 정보 수정/등록 다이얼로그 (기존 로직 보존) */}
       <Dialog open={open} onClose={() => setOpen(false)}>

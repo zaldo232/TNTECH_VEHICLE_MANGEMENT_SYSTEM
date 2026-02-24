@@ -3,19 +3,17 @@ import DataTable from '../../components/common/DataTable';
 import axios from 'axios';
 import { 
   Box, Button, TextField, Dialog, DialogTitle, DialogContent, 
-  DialogActions, MenuItem, Stack, InputAdornment, Typography, useMediaQuery 
+  DialogActions, MenuItem 
 } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-import AddIcon from '@mui/icons-material/Add'; 
-import SearchIcon from '@mui/icons-material/Search'; 
 import { useTranslation } from 'react-i18next';
+
+// ✅ 방금 만든 공통 상단바 컴포넌트 임포트
+import SearchFilterBar from '../../components/common/SearchFilterBar';
 
 const MemberPage = () => {
   const { t } = useTranslation();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  // 상태 관리 (기존 로직 유지)
+  // 상태 관리 (기존 로직 완벽 유지)
   const [members, setMembers] = useState([]);         
   const [filteredMembers, setFilteredMembers] = useState([]); 
   const [searchText, setSearchText] = useState('');     
@@ -40,10 +38,11 @@ const MemberPage = () => {
     { field: 'ROLE_NAME', headerName: t('member.role'), width: 150 },
   ];
 
-  // 데이터 불러오기 (기존 로직 유지)
+  // ✅ 데이터 불러오기 (id 매핑 로직 원상 복구)
   const fetchData = async () => {
     try {
       const res = await axios.get('/api/admin/members');
+      // DataGrid에서 오류가 나지 않도록 id 속성 강제 추가 (원래 코드 복원)
       const rowsWithId = res.data.map(m => ({ ...m, id: m.MEMBER_ID }));
       
       setMembers(rowsWithId);
@@ -61,7 +60,7 @@ const MemberPage = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  // 검색 기능 (기존 로직 유지)
+  // ✅ 검색 기능 (원래 코드 복원)
   const handleSearch = (e) => {
     const value = e.target.value;
     setSearchText(value);
@@ -126,49 +125,29 @@ const MemberPage = () => {
   };
 
   return (
-    <Box sx={{ p: 2 }}>
-      {/* ✅ [수정] 레이아웃 가이드에 맞춘 제목 및 우측 컨트롤 영역 */}
-      <Stack 
-        direction={{ xs: 'column', md: 'row' }} 
-        spacing={2} 
-        sx={{ mb: 2, justifyContent: 'space-between', alignItems: { xs: 'stretch', md: 'center' }, minHeight: 40 }}
-      >
-        <Typography variant="h5" fontWeight="bold">
-          {t('menu.member_mgmt')}
-        </Typography>
-
-        <Stack direction="row" spacing={1} alignItems="center">
-          <TextField
-            placeholder={t('member.search_placeholder')}
-            size="small"
-            value={searchText}
-            onChange={handleSearch}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-            }}
-            sx={{ width: { xs: '100%', sm: 300 }, bgcolor: 'background.paper' }}
-          />
-          <Button 
-            variant="contained" 
-            startIcon={<AddIcon />} 
-            onClick={handleOpenAdd}
-            sx={{ whiteSpace: 'nowrap' }}
-          >
-            {t('member.register')}
-          </Button>
-        </Stack>
-      </Stack>
-
-      <DataTable 
-        columns={columns} 
-        rows={filteredMembers} 
-        onRowClick={handleRowClick} 
+    // ✅ 표 위치 흔들림 방지: 레이아웃 껍데기 복원 (flexGrow 추가)
+    <Box sx={{ p: 2, height: '85vh', display: 'flex', flexDirection: 'column' }}>
+      
+      {/* ✅ 방금 만든 공통 SearchFilterBar 컴포넌트 적용! (기존 Stack 덩어리 교체) */}
+      <SearchFilterBar 
+        title={t('menu.member_mgmt')}
+        searchQuery={searchText}
+        onSearchChange={handleSearch}
+        onAdd={handleOpenAdd}
+        addBtnText={t('member.register')}
+        searchPlaceholder={t('member.search_placeholder')}
       />
 
+      {/* ✅ 표 영역 꽉 차게 렌더링 */}
+      <Box sx={{ flexGrow: 1, width: '100%', minHeight: 0 }}>
+        <DataTable 
+          columns={columns} 
+          rows={filteredMembers} 
+          onRowClick={handleRowClick} 
+        />
+      </Box>
+
+      {/* 등록/수정 모달 */}
       <Dialog open={open} onClose={() => setOpen(false)}>
         <DialogTitle>{isEdit ? t('member.edit') : t('member.register')}</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2, minWidth: 400 }}>

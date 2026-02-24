@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import DataTable from '../../components/common/DataTable'; 
 import axios from 'axios';
-import { Box, Typography, Stack, Chip, FormControl, Select, MenuItem, useMediaQuery } from '@mui/material'; // useMediaQuery 추가
-import { useTheme } from '@mui/material/styles'; // useTheme 추가
+import { Box, Typography, Chip, FormControl, Select, MenuItem, useMediaQuery } from '@mui/material';
+import { useTheme } from '@mui/material/styles'; 
 import { useTranslation } from 'react-i18next';
 import useStore from '../../context/store';
+
+// 공통 상단바 컴포넌트 임포트
+import SearchFilterBar from '../../components/common/SearchFilterBar';
 
 const HistoryPage = () => {
   const { t, i18n } = useTranslation();
   const { user } = useStore();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm')); // ✅ 모바일 감지
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm')); 
 
   const [historyList, setHistoryList] = useState([]);
   const [filter, setFilter] = useState('ALL'); 
@@ -112,31 +115,17 @@ const HistoryPage = () => {
   useEffect(() => { if (user) fetchHistory(); }, [filter, user]);
 
   return (
-    <Box sx={{ p: 2, pb: 10 }}> {/* 모바일 스크롤 여유를 위해 pb: 10 추가 */}
+    // 표 높이 유지: height 85vh와 flex 설정 유지 (모바일 스크롤 여유 pb: 10 보존)
+    <Box sx={{ p: 2, pb: { xs: 10, md: 2 }, height: '85vh', display: 'flex', flexDirection: 'column' }}>
       
-      {/* ✅ 모바일 반응형 Stack 적용 */}
-      <Stack 
-        direction={{ xs: 'column', md: 'row' }} 
-        spacing={2} 
-        sx={{ 
-          mb: 2, 
-          justifyContent: 'space-between', 
-          alignItems: { xs: 'stretch', md: 'center' }, // 모바일: 꽉 채우기, PC: 중앙 정렬
-          minHeight: 40 
-        }}
-      >
-        {/* 왼쪽: 타이틀 */}
-        <Typography variant="h5" fontWeight="bold" sx={{ mb: isMobile ? 1 : 0 }}>
-          {t('history.title')}
-        </Typography>
-        
-        {/* 오른쪽: 콤보박스 */}
+      {/* SearchFilterBar 적용 (검색/버튼 없이 콤보박스만 자식으로 전달) */}
+      <SearchFilterBar title={t('history.title')}>
         <FormControl size="small" sx={{ minWidth: 120 }}>
           <Select 
             value={filter} 
             onChange={(e) => setFilter(e.target.value)}
-            fullWidth={isMobile} // 모바일일 때 가로를 100% 꽉 채우도록 설정
-            sx={{ fontWeight: 'bold', bgcolor: 'background.paper', height: 40 }}
+            fullWidth={isMobile} 
+            sx={{ fontWeight: 'bold', bgcolor: 'background.paper' }}
           >
             <MenuItem value="ALL">{t('history.filter_all')}</MenuItem>
             <MenuItem value="RESERVED">{t('history.filter_reserved')}</MenuItem>
@@ -145,10 +134,12 @@ const HistoryPage = () => {
             <MenuItem value="CANCELED">{t('history.filter_canceled')}</MenuItem>
           </Select>
         </FormControl>
+      </SearchFilterBar>
 
-      </Stack>
-
-      <DataTable columns={columns} rows={historyList} />
+      {/* 표 영역 꽉 차게 렌더링 */}
+      <Box sx={{ flexGrow: 1, width: '100%', minHeight: 0 }}>
+        <DataTable columns={columns} rows={historyList} />
+      </Box>
     </Box>
   );
 };

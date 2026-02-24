@@ -2,18 +2,15 @@ import React, { useEffect, useState } from 'react';
 import DataTable from '../../components/common/DataTable';
 import axios from 'axios';
 import { 
-  Box, Button, TextField, Dialog, DialogTitle, DialogContent, 
-  DialogActions, Stack, InputAdornment, useMediaQuery, Typography 
+  Box, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions 
 } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-import AddIcon from '@mui/icons-material/Add';
-import SearchIcon from '@mui/icons-material/Search';
 import { useTranslation } from 'react-i18next';
+
+// ✅ 공통 상단바 컴포넌트 임포트
+import SearchFilterBar from '../../components/common/SearchFilterBar';
 
 const GroupCodePage = () => {
   const { t } = useTranslation();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const [rows, setRows] = useState([]);                 
   const [filteredRows, setFilteredRows] = useState([]); 
@@ -120,50 +117,28 @@ const GroupCodePage = () => {
   };
 
   return (
-    <Box sx={{ p: 2 }}>
-      {/* ✅ 3단 헤더 & 높이 40 고정 */}
-      <Stack 
-        direction={isMobile ? 'column' : 'row'} 
-        spacing={2} 
-        sx={{ 
-          mb: 2, 
-          justifyContent: 'space-between', 
-          alignItems: isMobile ? 'stretch' : 'center',
-          height: isMobile ? 'auto' : 40 
-        }}
-      >
-        <Typography variant="h5" fontWeight="bold">
-          {t('groupcode.title')}
-        </Typography>
-
-        <Stack direction="row" spacing={1}>
-          <TextField
-            placeholder={t('groupcode.search_placeholder')}
-            size="small"
-            value={searchText}
-            onChange={handleSearch}
-            InputProps={{
-              startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment>,
-            }}
-            sx={{ width: isMobile ? '100%' : 300, bgcolor: 'background.paper' }}
-          />
-          <Button 
-            variant="contained" 
-            startIcon={<AddIcon />} 
-            onClick={handleOpenAdd}
-            sx={{ flexShrink: 0 }}
-          >
-            {isMobile ? t('common.register') : t('groupcode.register')}
-          </Button>
-        </Stack>
-      </Stack>
-
-      <DataTable 
-        columns={columns} 
-        rows={filteredRows} 
-        idField="id"
-        onRowClick={handleRowClick} 
+    // ✅ 표 높이 유지: height 85vh와 flex 설정 유지
+    <Box sx={{ p: 2, height: '85vh', display: 'flex', flexDirection: 'column' }}>
+      
+      {/* ✅ 공통 SearchFilterBar 적용 */}
+      <SearchFilterBar 
+        title={t('groupcode.title')}
+        searchQuery={searchText}
+        onSearchChange={handleSearch}
+        onAdd={handleOpenAdd}
+        addBtnText={t('groupcode.register')}
+        searchPlaceholder={t('groupcode.search_placeholder')}
       />
+
+      {/* ✅ 표 영역 꽉 차게 렌더링 */}
+      <Box sx={{ flexGrow: 1, width: '100%', minHeight: 0 }}>
+        <DataTable 
+          columns={columns} 
+          rows={filteredRows} 
+          idField="id"
+          onRowClick={handleRowClick} 
+        />
+      </Box>
 
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle fontWeight="bold">

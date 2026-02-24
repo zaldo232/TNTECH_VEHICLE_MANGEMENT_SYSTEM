@@ -51,7 +51,7 @@ const MobileCalendarList = ({ currentDate, dataMap, onDateClick, renderItem, emp
         </Box>
         <Box sx={{ flexGrow: 1, p: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
           {dayItems.length > 0 ? (
-            // ✅ [수정] 다중 정렬 적용: 차량명 -> 대여상태(대여우선) -> 이름
+            // 다중 정렬 적용: 차량명 -> 대여상태(대여우선) -> 이름
             [...dayItems].sort((a, b) => {
               const carA = a.VEHICLE_NAME || '';
               const carB = b.VEHICLE_NAME || '';
