@@ -1,36 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   List, ListItem, ListItemButton, ListItemIcon, ListItemText, 
-  Divider, IconButton, Box, Drawer as MuiDrawer, Toolbar, Collapse, Typography
+  Divider, IconButton, Box, Drawer as MuiDrawer, Toolbar, Collapse, Typography,
+  useMediaQuery
 } from '@mui/material';
 
 import { styled, useTheme } from '@mui/material/styles';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useTranslation } from 'react-i18next'; // 다국어 훅
+import { useTranslation } from 'react-i18next';
 
-import useStore from '../../context/store'; // User 정보 가져오기
+import useStore from '../../context/store';
 
-// --- 아이콘 임포트 ---
-import DashboardIcon from '@mui/icons-material/Dashboard';          // 대시보드
-import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';  // 차량관리
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';  // 배차관리(달력)
-import EditCalendarIcon from '@mui/icons-material/EditCalendar';    // 배차신청
-import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted'; // [변경] 운행 일지 (목록형)
-import AssignmentIcon from '@mui/icons-material/Assignment';        // [변경] 운행 기록부 양식 (클립보드형)
-import SettingsIcon from '@mui/icons-material/Settings';            // 시스템설정
-import PeopleIcon from '@mui/icons-material/People';                // 회원관리
-import ListAltIcon from '@mui/icons-material/ListAlt';              // 공통코드
-import CategoryIcon from '@mui/icons-material/Category';            // 카테고리
+// 아이콘 임포트
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import EditCalendarIcon from '@mui/icons-material/EditCalendar';
+import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted'; 
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import SettingsIcon from '@mui/icons-material/Settings';
+import PeopleIcon from '@mui/icons-material/People';
+import ListAltIcon from '@mui/icons-material/ListAlt';
+import CategoryIcon from '@mui/icons-material/Category';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
-import TimeToLeaveIcon from '@mui/icons-material/TimeToLeave';      // 반납
-import BuildIcon from '@mui/icons-material/Build';                  // 점검
+import TimeToLeaveIcon from '@mui/icons-material/TimeToLeave';
+import BuildIcon from '@mui/icons-material/Build';
 
 const drawerWidth = 250;
 const miniDrawerWidth = 65;
 
-// 열렸을 때 스타일
 const openedMixin = (theme) => ({
   width: drawerWidth,
   transition: theme.transitions.create('width', {
@@ -40,7 +40,6 @@ const openedMixin = (theme) => ({
   overflowX: 'hidden',
 });
 
-// 닫혔을 때 스타일
 const closedMixin = (theme) => ({
   transition: theme.transitions.create('width', {
     easing: theme.transitions.easing.sharp,
@@ -75,16 +74,26 @@ const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
+  const isMobileSize = useMediaQuery(theme.breakpoints.down('sm'));
   
-  // Zustand Store에서 상태 가져오기
   const { isSidebarOpen, toggleSidebar, user } = useStore(); 
-  
   const [isHovered, setIsHovered] = useState(false);
   const isOpen = isSidebarOpen || isHovered; 
 
-  // 아코디언 상태 관리 
   const [openDispatch, setOpenDispatch] = useState(true);
   const [openSystem, setOpenSystem] = useState(false);
+
+  // 시스템 설정 메뉴에 접근할 수 있는 권한 확인
+const allowedRoles = [
+    'CHIEF_EXECUTIVE_OFFICER', // 대표
+    'GENERAL_MANAGER',         // 본부장
+    'DIRECTOR',                // 이사
+    'TEAM_LEADER',             // 팀장
+    'ADMINISTRATOR'            // 관리자
+  ];
+
+  // 유저의 직급(role)이 위 배열에 포함되어 있는지 확인
+  const isSystemAdmin = allowedRoles.includes(user?.role);
 
   const handleMenuClick = (path) => {
     navigate(path);
@@ -92,168 +101,161 @@ const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
   };
 
   const handleDispatchToggle = () => {
-    if (!isOpen) toggleSidebar(); 
+    if (!isOpen && !isMobileSize) toggleSidebar(); 
     setOpenDispatch(!openDispatch);
   };
 
   const handleSystemToggle = () => {
-    if (!isOpen) toggleSidebar();
+    if (!isOpen && !isMobileSize) toggleSidebar();
     setOpenSystem(!openSystem);
   };
 
-  const drawerList = (
-    <List component="nav">
-      
-      {/* 1. 대시보드 */}
-      <ListItem disablePadding sx={{ display: 'block' }}>
-        <ListItemButton
-          selected={location.pathname === '/'}
-          onClick={() => handleMenuClick('/')}
-          sx={{ minHeight: 48, justifyContent: isOpen ? 'initial' : 'center', px: 2.5 }}
-        >
-          <ListItemIcon sx={{ minWidth: 0, mr: isOpen ? 3 : 'auto', justifyContent: 'center', color: location.pathname === '/' ? 'primary.main' : 'inherit' }}>
-            <DashboardIcon />
-          </ListItemIcon>
-          <ListItemText primary={t('menu.dashboard')} sx={{ opacity: isOpen ? 1 : 0 }} />
-        </ListItemButton>
-      </ListItem>
+  // 모바일이거나 사이드바가 열린 상태일 때만 텍스트를 보여줌
+  const renderList = (isForceOpen) => {
+    const isExpanded = isForceOpen || isOpen;
 
-      <Divider sx={{ my: 1, opacity: isOpen ? 1 : 0 }} />
-
-      {/* 2. 차량 배차 (아코디언) */}
-      <ListItem disablePadding sx={{ display: 'block' }}>
-        <ListItemButton
-          onClick={handleDispatchToggle}
-          sx={{ minHeight: 48, justifyContent: isOpen ? 'initial' : 'center', px: 2.5 }}
-        >
-          <ListItemIcon sx={{ minWidth: 0, mr: isOpen ? 3 : 'auto', justifyContent: 'center' }}>
-            <CalendarMonthIcon />
-          </ListItemIcon>
-          <ListItemText primary={t('menu.dispatch_mgmt')} sx={{ opacity: isOpen ? 1 : 0 }} />
-          {isOpen ? (openDispatch ? <ExpandLess /> : <ExpandMore />) : null}
-        </ListItemButton>
-      </ListItem>
-
-      <Collapse in={openDispatch && isOpen} timeout="auto" unmountOnExit>
-        <List component="div" disablePadding>
-          {/* 차량 신청 */}
-          <ListItemButton sx={{ pl: 4 }} selected={location.pathname === '/dispatch/request'} onClick={() => handleMenuClick('/dispatch/request')}>
-            <ListItemIcon sx={{ minWidth: 0, mr: 2 }}><EditCalendarIcon fontSize="small" /></ListItemIcon>
-            <ListItemText primary={t('menu.dispatch_request')} />
+    return (
+      <List component="nav">
+        {/* 1. 대시보드 */}
+        <ListItem disablePadding sx={{ display: 'block' }}>
+          <ListItemButton
+            selected={location.pathname === '/'}
+            onClick={() => handleMenuClick('/')}
+            sx={{ minHeight: 48, justifyContent: isExpanded ? 'initial' : 'center', px: 2.5 }}
+          >
+            <ListItemIcon sx={{ minWidth: 0, mr: isExpanded ? 3 : 'auto', justifyContent: 'center', color: location.pathname === '/' ? 'primary.main' : 'inherit' }}>
+              <DashboardIcon />
+            </ListItemIcon>
+            <ListItemText primary={t('menu.dashboard')} sx={{ opacity: isExpanded ? 1 : 0 }} />
           </ListItemButton>
+        </ListItem>
 
-          {/* 차량 반납 */}
-          <ListItemButton sx={{ pl: 4 }} selected={location.pathname === '/dispatch/status'} onClick={() => handleMenuClick('/dispatch/status')}>
-            <ListItemIcon sx={{ minWidth: 0, mr: 2 }}><TimeToLeaveIcon fontSize="small" /></ListItemIcon>
-            <ListItemText primary={t('menu.dispatch_status')} />
+        <Divider sx={{ my: 1, opacity: isExpanded ? 1 : 0 }} />
+
+        {/* 2. 차량 배차 (아코디언) */}
+        <ListItem disablePadding sx={{ display: 'block' }}>
+          <ListItemButton
+            onClick={handleDispatchToggle}
+            sx={{ minHeight: 48, justifyContent: isExpanded ? 'initial' : 'center', px: 2.5 }}
+          >
+            <ListItemIcon sx={{ minWidth: 0, mr: isExpanded ? 3 : 'auto', justifyContent: 'center' }}>
+              <CalendarMonthIcon />
+            </ListItemIcon>
+            <ListItemText primary={t('menu.dispatch_mgmt')} sx={{ opacity: isExpanded ? 1 : 0 }} />
+            {isExpanded ? (openDispatch ? <ExpandLess /> : <ExpandMore />) : null}
           </ListItemButton>
+        </ListItem>
 
-          {/* [위치 이동] 3. 차량 점검 관리 (반납 밑으로 이동) */}
-          <ListItemButton sx={{ pl: 4 }} selected={location.pathname === '/management'} onClick={() => handleMenuClick('/management')}>
-            <ListItemIcon sx={{ minWidth: 0, mr: 2 }}><BuildIcon fontSize="small" /></ListItemIcon>
-            <ListItemText primary={t('menu.management')} />
+        <Collapse in={openDispatch && isExpanded} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding>
+            <ListItemButton sx={{ pl: 4 }} selected={location.pathname === '/dispatch/request'} onClick={() => handleMenuClick('/dispatch/request')}>
+              <ListItemIcon sx={{ minWidth: 0, mr: 2 }}><EditCalendarIcon fontSize="small" /></ListItemIcon>
+              <ListItemText primary={t('menu.dispatch_request')} />
+            </ListItemButton>
+            <ListItemButton sx={{ pl: 4 }} selected={location.pathname === '/dispatch/status'} onClick={() => handleMenuClick('/dispatch/status')}>
+              <ListItemIcon sx={{ minWidth: 0, mr: 2 }}><TimeToLeaveIcon fontSize="small" /></ListItemIcon>
+              <ListItemText primary={t('menu.dispatch_status')} />
+            </ListItemButton>
+            <ListItemButton sx={{ pl: 4 }} selected={location.pathname === '/management'} onClick={() => handleMenuClick('/management')}>
+              <ListItemIcon sx={{ minWidth: 0, mr: 2 }}><BuildIcon fontSize="small" /></ListItemIcon>
+              <ListItemText primary={t('menu.management')} />
+            </ListItemButton>
+          </List>
+        </Collapse>
+
+        <Divider sx={{ my: 1, opacity: isExpanded ? 1 : 0 }} />
+
+        {/* 4. 차량 운행 일지 */}
+        <ListItem disablePadding sx={{ display: 'block' }}>
+          <ListItemButton
+            selected={location.pathname === '/history'}
+            onClick={() => handleMenuClick('/history')}
+            sx={{ minHeight: 48, justifyContent: isExpanded ? 'initial' : 'center', px: 2.5 }}
+          >
+            <ListItemIcon sx={{ minWidth: 0, mr: isExpanded ? 3 : 'auto', justifyContent: 'center', color: location.pathname === '/history' ? 'primary.main' : 'inherit' }}>
+              <FormatListBulletedIcon /> 
+            </ListItemIcon>
+            <ListItemText primary={t('menu.history')} sx={{ opacity: isExpanded ? 1 : 0 }} />
           </ListItemButton>
-        </List>
-      </Collapse>
+        </ListItem>
 
-      <Divider sx={{ my: 1, opacity: isOpen ? 1 : 0 }} />
-
-      {/* 차량 관리 (운행기록부 밑으로 이동) */}
-      <ListItem disablePadding sx={{ display: 'block' }}>
-        <ListItemButton
-          selected={location.pathname === '/admin/vehicles'}
-          onClick={() => handleMenuClick('/admin/vehicles')}
-          sx={{ minHeight: 48, justifyContent: isOpen ? 'initial' : 'center', px: 2.5 }}
-        >
-          <ListItemIcon sx={{ minWidth: 0, mr: isOpen ? 3 : 'auto', justifyContent: 'center', color: location.pathname === '/admin/vehicles' ? 'primary.main' : 'inherit' }}>
-            <DirectionsCarIcon />
-          </ListItemIcon>
-          <ListItemText primary={t('menu.vehicle_mgmt')} sx={{ opacity: isOpen ? 1 : 0 }} />
-        </ListItemButton>
-      </ListItem>
-
-
-      {/* 4. 차량 운행 일지 (아이콘 변경) */}
-      <ListItem disablePadding sx={{ display: 'block' }}>
-        <ListItemButton
-          selected={location.pathname === '/history'}
-          onClick={() => handleMenuClick('/history')}
-          sx={{ minHeight: 48, justifyContent: isOpen ? 'initial' : 'center', px: 2.5 }}
-        >
-          <ListItemIcon sx={{ minWidth: 0, mr: isOpen ? 3 : 'auto', justifyContent: 'center', color: location.pathname === '/history' ? 'primary.main' : 'inherit' }}>
-            <FormatListBulletedIcon /> 
-          </ListItemIcon>
-          <ListItemText primary={t('menu.history')} sx={{ opacity: isOpen ? 1 : 0 }} />
-        </ListItemButton>
-      </ListItem>
-
-      {/* 5. 운행 기록부 양식 (아이콘 변경) */}
-      <ListItem disablePadding sx={{ display: 'block' }}>
-        <ListItemButton
-          selected={location.pathname === '/history/log'}
-          onClick={() => handleMenuClick('/history/log')}
-          sx={{ minHeight: 48, justifyContent: isOpen ? 'initial' : 'center', px: 2.5 }}
-        >
-          <ListItemIcon sx={{ 
-            minWidth: 0, 
-            mr: isOpen ? 3 : 'auto', 
-            justifyContent: 'center', 
-            color: location.pathname === '/history/log' ? 'primary.main' : 'inherit' 
-          }}>
-            <AssignmentIcon /> 
-          </ListItemIcon>
-          <ListItemText primary={t('menu.driving_log_form')} sx={{ opacity: isOpen ? 1 : 0 }} />
-        </ListItemButton>
-      </ListItem>
-
-      <Divider sx={{ my: 1, opacity: isOpen ? 1 : 0 }} />
-      
-      {/* 7. 시스템 설정 (아코디언) */}
-      <ListItem disablePadding sx={{ display: 'block' }}>
-        <ListItemButton
-          onClick={handleSystemToggle}
-          sx={{ minHeight: 48, justifyContent: isOpen ? 'initial' : 'center', px: 2.5 }}
-        >
-          <ListItemIcon sx={{ minWidth: 0, mr: isOpen ? 3 : 'auto', justifyContent: 'center' }}>
-            <SettingsIcon />
-          </ListItemIcon>
-          <ListItemText primary={t('menu.system_settings')} sx={{ opacity: isOpen ? 1 : 0 }} />
-          {isOpen ? (openSystem ? <ExpandLess /> : <ExpandMore />) : null}
-        </ListItemButton>
-      </ListItem>
-
-      <Collapse in={openSystem && isOpen} timeout="auto" unmountOnExit>
-        <List component="div" disablePadding>
-          {/* 멤버 관리 */}
-          <ListItemButton sx={{ pl: 4 }} selected={location.pathname === '/admin/members'} onClick={() => handleMenuClick('/admin/members')}>
-            <ListItemIcon sx={{ minWidth: 0, mr: 2 }}><PeopleIcon fontSize="small" /></ListItemIcon>
-            <ListItemText primary={t('menu.member_mgmt')} />
+        {/* 5. 운행 기록부 양식 */}
+        <ListItem disablePadding sx={{ display: 'block' }}>
+          <ListItemButton
+            selected={location.pathname === '/history/log'}
+            onClick={() => handleMenuClick('/history/log')}
+            sx={{ minHeight: 48, justifyContent: isExpanded ? 'initial' : 'center', px: 2.5 }}
+          >
+            <ListItemIcon sx={{ minWidth: 0, mr: isExpanded ? 3 : 'auto', justifyContent: 'center', color: location.pathname === '/history/log' ? 'primary.main' : 'inherit' }}>
+              <AssignmentIcon /> 
+            </ListItemIcon>
+            <ListItemText primary={t('menu.driving_log_form')} sx={{ opacity: isExpanded ? 1 : 0 }} />
           </ListItemButton>
-          {/* 그룹 코드 관리 */}
-          <ListItemButton sx={{ pl: 4 }} selected={location.pathname === '/admin/groupcodes'} onClick={() => handleMenuClick('/admin/groupcodes')}>
-            <ListItemIcon sx={{ minWidth: 0, mr: 2 }}><CategoryIcon fontSize="small" /></ListItemIcon>
-            <ListItemText primary={t('menu.groupcode_mgmt')} />
-          </ListItemButton>
-          {/* 공통 코드 관리 */}
-          <ListItemButton sx={{ pl: 4 }} selected={location.pathname === '/admin/codes'} onClick={() => handleMenuClick('/admin/codes')}>
-            <ListItemIcon sx={{ minWidth: 0, mr: 2 }}><ListAltIcon fontSize="small" /></ListItemIcon>
-            <ListItemText primary={t('menu.code_mgmt')} />
-          </ListItemButton>
-        </List>
-      </Collapse>
+        </ListItem>
 
-    </List>
-  );
+        {/* 6. 차량 관리 */}
+        <ListItem disablePadding sx={{ display: 'block' }}>
+          <ListItemButton
+            selected={location.pathname === '/admin/vehicles'}
+            onClick={() => handleMenuClick('/admin/vehicles')}
+            sx={{ minHeight: 48, justifyContent: isExpanded ? 'initial' : 'center', px: 2.5 }}
+          >
+            <ListItemIcon sx={{ minWidth: 0, mr: isExpanded ? 3 : 'auto', justifyContent: 'center', color: location.pathname === '/admin/vehicles' ? 'primary.main' : 'inherit' }}>
+              <DirectionsCarIcon />
+            </ListItemIcon>
+            <ListItemText primary={t('menu.vehicle_mgmt')} sx={{ opacity: isExpanded ? 1 : 0 }} />
+          </ListItemButton>
+        </ListItem>
+
+        {/* 관리자 권한이 있는 경우에만 시스템 설정 노출 */}
+        {isSystemAdmin && (
+          <>
+            <Divider sx={{ my: 1, opacity: isExpanded ? 1 : 0 }} />
+            
+            {/* 7. 시스템 설정 */}
+            <ListItem disablePadding sx={{ display: 'block' }}>
+              <ListItemButton
+                onClick={handleSystemToggle}
+                sx={{ minHeight: 48, justifyContent: isExpanded ? 'initial' : 'center', px: 2.5 }}
+              >
+                <ListItemIcon sx={{ minWidth: 0, mr: isExpanded ? 3 : 'auto', justifyContent: 'center' }}>
+                  <SettingsIcon />
+                </ListItemIcon>
+                <ListItemText primary={t('menu.system_settings')} sx={{ opacity: isExpanded ? 1 : 0 }} />
+                {isExpanded ? (openSystem ? <ExpandLess /> : <ExpandMore />) : null}
+              </ListItemButton>
+            </ListItem>
+
+            <Collapse in={openSystem && isExpanded} timeout="auto" unmountOnExit>
+              <List component="div" disablePadding>
+                <ListItemButton sx={{ pl: 4 }} selected={location.pathname === '/admin/members'} onClick={() => handleMenuClick('/admin/members')}>
+                  <ListItemIcon sx={{ minWidth: 0, mr: 2 }}><PeopleIcon fontSize="small" /></ListItemIcon>
+                  <ListItemText primary={t('menu.member_mgmt')} />
+                </ListItemButton>
+                <ListItemButton sx={{ pl: 4 }} selected={location.pathname === '/admin/groupcodes'} onClick={() => handleMenuClick('/admin/groupcodes')}>
+                  <ListItemIcon sx={{ minWidth: 0, mr: 2 }}><CategoryIcon fontSize="small" /></ListItemIcon>
+                  <ListItemText primary={t('menu.groupcode_mgmt')} />
+                </ListItemButton>
+                <ListItemButton sx={{ pl: 4 }} selected={location.pathname === '/admin/codes'} onClick={() => handleMenuClick('/admin/codes')}>
+                  <ListItemIcon sx={{ minWidth: 0, mr: 2 }}><ListAltIcon fontSize="small" /></ListItemIcon>
+                  <ListItemText primary={t('menu.code_mgmt')} />
+                </ListItemButton>
+              </List>
+            </Collapse>
+          </>
+        )}
+      </List>
+    );
+  };
 
   return (
     <Box
       component="nav"
       onMouseEnter={() => !isSidebarOpen && setIsHovered(true)}
-      onMouseLeave={() => {
-        setIsHovered(false);
-      }}
+      onMouseLeave={() => setIsHovered(false)}
       sx={{ width: { sm: isOpen ? drawerWidth : miniDrawerWidth }, flexShrink: { sm: 0 } }}
     >
+      {/* 📱 모바일 드로어: 항상 Full 상태로 렌더링 */}
       <MuiDrawer
         variant="temporary"
         open={mobileOpen}
@@ -266,9 +268,10 @@ const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
       >
         <Toolbar />
         <Divider />
-        {drawerList}
+        {renderList(true)} {/* forceOpen: true */}
       </MuiDrawer>
 
+      {/* 데스크탑 드로어: isOpen 상태에 따라 유동적으로 렌더링 */}
       <Drawer
         variant="permanent"
         open={isOpen}
@@ -285,7 +288,7 @@ const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
           </IconButton>
         </Box>
         <Divider />
-        {drawerList}
+        {renderList(false)} {/* Desktop용 기본 로직 */}
       </Drawer>
     </Box>
   );

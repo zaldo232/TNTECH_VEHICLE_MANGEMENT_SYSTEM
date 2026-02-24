@@ -27,7 +27,10 @@ const getLocalISOTime = () => {
 
 const DispatchStatusPage = () => {
   const { t, i18n } = useTranslation();
-  const { user } = useStore(); 
+  
+  // ✅ Zustand에서 유저 정보와 사이드바 상태 가져오기
+  const { user, isSidebarOpen } = useStore(); 
+  
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
@@ -53,6 +56,17 @@ const DispatchStatusPage = () => {
     'AM': t('dispatch.am'),
     'PM': t('dispatch.pm')
   };
+
+  // ✅ 사이드바 상태 변경 시 달력 크기 강제 재계산
+  useEffect(() => {
+    if (!isMobile && calendarRef.current) {
+      const timer = setTimeout(() => {
+        const api = calendarRef.current.getApi();
+        api.updateSize(); 
+      }, 250);
+      return () => clearTimeout(timer);
+    }
+  }, [isSidebarOpen, isMobile]);
 
   const fetchAllStatus = async (targetDate) => {
     try {
@@ -116,27 +130,24 @@ const DispatchStatusPage = () => {
 
   const handlePrev = () => {
     lastScrolledMonthRef.current = ""; 
-    if (isMobile) {
-      const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
-      setCurrentDate(newDate); fetchAllStatus(newDate);
-    } else calendarRef.current.getApi().prev();
+    const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+    setCurrentDate(newDate); fetchAllStatus(newDate);
+    if (!isMobile) calendarRef.current.getApi().prev();
   };
 
   const handleNext = () => {
     lastScrolledMonthRef.current = ""; 
-    if (isMobile) {
-      const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
-      setCurrentDate(newDate); fetchAllStatus(newDate);
-    } else calendarRef.current.getApi().next();
+    const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+    setCurrentDate(newDate); fetchAllStatus(newDate);
+    if (!isMobile) calendarRef.current.getApi().next();
   };
 
   const handleToday = () => {
     lastScrolledMonthRef.current = ""; 
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    setCurrentDate(firstDay);
+    setCurrentDate(firstDay); fetchAllStatus(firstDay);
     if (!isMobile) calendarRef.current.getApi().today();
-    else fetchAllStatus(firstDay);
   };
 
   const handleJumpDate = (year, month) => {
@@ -198,6 +209,7 @@ const DispatchStatusPage = () => {
     setIsPanelOpen(true);
   };
 
+  // ✅ [수정] 데이터 불일치(이미 취소됨 등) 대응 로직 추가
   const handleReturnSubmit = async () => {
     const startM = parseInt(returnForm.startMileage);
     const endM = parseInt(returnForm.endMileage);
@@ -222,16 +234,24 @@ const DispatchStatusPage = () => {
       setIsPanelOpen(false);
       fetchAllStatus(currentDate); 
     } catch (err) {
-      alert(t('dispatch.return_fail'));
+      // ✅ 서버에서 보낸 에러 메시지(이미 취소됨 등) 출력 및 강제 새로고침
+      const serverMessage = err.response?.data?.message;
+      alert(serverMessage || t('dispatch.return_fail'));
+      fetchAllStatus(currentDate); // 목록 최신화
+      setIsPanelOpen(false);
     }
   };
 
+  // ✅ [수정] 일요일 시작 기준의 상식적인 주차 계산
   const renderMobileList = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const listItems = [];
     const now = new Date();
+
+    // 1일의 요일 인덱스 (0: 일요일, ..., 6: 토요일)
+    const firstDayIndex = new Date(year, month, 1).getDay();
 
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
@@ -241,8 +261,9 @@ const DispatchStatusPage = () => {
       const isSat = date.getDay() === 6;
       const isToday = now.getFullYear() === year && now.getMonth() === month && now.getDate() === day;
 
-      if (day === 1 || date.getDay() === 1) {
-        const weekNum = Math.ceil((day + new Date(year, month, 1).getDay()) / 7) - 1;
+      // ✅ 1일이거나 일요일(0)일 때 주차 헤더 생성 (1-4일 1주차, 5일부터 2주차 방식)
+      if (day === 1 || isSun) {
+        const weekNum = Math.ceil((day + firstDayIndex) / 7);
         listItems.push(
           <Box key={`week-${weekNum}`} sx={{ bgcolor: 'action.hover', py: 0.5, px: 2, borderY: '1px solid #eee' }}>
             <Typography variant="caption" fontWeight="bold" color="text.secondary">
@@ -259,9 +280,8 @@ const DispatchStatusPage = () => {
             <Typography variant="caption" sx={{ color: isSun ? 'error.main' : isSat ? 'primary.main' : 'text.secondary' }}>{t(`weekdays.${date.getDay()}`)}</Typography>
           </Box>
           <Box sx={{ flexGrow: 1, p: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-            {/* [정렬 적용] 차량 이름 가나다순 정렬 후 렌더링 */}
             {dayItems.length > 0 ? [...dayItems].sort((a, b) => (a.VEHICLE_NAME || '').localeCompare(b.VEHICLE_NAME || '', 'ko')).map((v, i) => (
-              <Box key={i} onClick={() => handleItemClick(v)} sx={{ borderLeft: '4px solid #2e7d32', bgcolor: 'rgba(46, 125, 50, 0.05)', px: 1, py: 0.5, borderRadius: '0 4px 4px 0', fontSize: '13px', fontWeight: 600, color: '#2e7d32', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <Box key={i} onClick={() => handleItemClick(v)} sx={{ borderLeft: '4px solid #2e7d32', bgcolor: 'rgba(46, 125, 50, 0.05)', px: 1, py: 0.5, borderRadius: '0 4px 4px 0', fontSize: '13px', fontWeight: 600, color: '#2e7d32', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer' }}>
                 {v.VEHICLE_NAME} ({periodMap[v.RENTAL_PERIOD] || '종일'}) - {v.MEMBER_NAME}
               </Box>
             )) : (
@@ -275,7 +295,7 @@ const DispatchStatusPage = () => {
   };
 
   return (
-    <Box sx={{ p: isMobile ? 1 : 2, height: '90vh', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ p: isMobile ? 1 : 2, height: '90vh', width: '100%', display: 'flex', flexDirection: 'column' }}>
       
       {/* [모바일 3단 반응형 헤더] */}
       <Stack direction="column" spacing={isMobile ? 1.5 : 2} sx={{ mb: 2 }}>
@@ -289,7 +309,6 @@ const DispatchStatusPage = () => {
           justifyContent="space-between" 
           alignItems={{ xs: 'stretch', md: 'center' }}
         >
-          {/* 날짜 및 화살표 조작부 */}
           <Stack direction="row" alignItems="center" spacing={1} sx={{ justifyContent: isMobile ? 'center' : 'flex-start' }}>
             <Typography variant={isMobile ? "h6" : "h5"} fontWeight="bold" sx={{ minWidth: isMobile ? 110 : 160 }}>
               {currentDate.toLocaleString(i18n.language, { year: 'numeric', month: 'long' })}
@@ -300,7 +319,6 @@ const DispatchStatusPage = () => {
             </Box>
           </Stack>
 
-          {/* 년/월 선택 및 오늘 버튼 */}
           <Stack direction="row" spacing={0.5} justifyContent={isMobile ? 'center' : 'flex-end'}>
             <FormControl size="small" sx={{ minWidth: 85 }}>
                 <InputLabel id="year-label">{t('calendar.year')}</InputLabel>
@@ -319,11 +337,8 @@ const DispatchStatusPage = () => {
         </Stack>
       </Stack>
 
-      {/* 메인 영역 */}
+      {/* 메인 달력 영역 */}
       <Paper sx={{ p: isMobile ? 0 : 2, flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {!isMobile && <Divider sx={{ mb: 2 }} />}
-        
-        {/* 스크롤 박스 연동 */}
         <Box ref={scrollContainerRef} sx={{ flexGrow: 1, overflow: 'auto' }}>
           {isMobile ? (
             <Box sx={{ height: '100%' }}>{renderMobileList()}</Box>
@@ -331,13 +346,14 @@ const DispatchStatusPage = () => {
             <FullCalendar
               ref={calendarRef} 
               plugins={[dayGridPlugin, interactionPlugin]} 
-              initialDate={currentDate} // ✅ 현재 날짜 동기화
+              initialDate={currentDate} 
               initialView="dayGridMonth"
               locale={i18n.language} 
               height="100%" 
               headerToolbar={false} 
               fixedWeekCount={true} 
               showNonCurrentDates={true} 
+              expandRows={true} // ✅ 세로 빈 공간 방지
               datesSet={handleDatesSet}
               dayCellContent={(arg) => {
                 const dateStr = arg.date.toLocaleDateString('sv-SE'); 
@@ -351,7 +367,6 @@ const DispatchStatusPage = () => {
                       </Typography>
                     </Box>
                     <Box sx={{ position: 'absolute', top: '32px', bottom: 0, left: 0, right: 0, display: 'flex', flexDirection: 'column', gap: '3px', px: '2px', pb: '4px', overflowY: 'auto' }}>
-                      {/* ✅ [정렬 적용] PC 버전에서도 차량 이름 가나다순 정렬 */}
                       {[...dayItems].sort((a, b) => (a.VEHICLE_NAME || '').localeCompare(b.VEHICLE_NAME || '', 'ko')).map((v, i) => (
                         <Box key={i} onClick={() => handleItemClick(v)} 
                           sx={{ 
@@ -360,7 +375,7 @@ const DispatchStatusPage = () => {
                             bgcolor: isCurrentMonth ? 'rgba(46, 125, 50, 0.05)' : 'rgba(0, 0, 0, 0.04)', 
                             color: isCurrentMonth ? '#2e7d32' : 'text.secondary', 
                             fontSize: '13px', fontWeight: 600, pl: 0.8, py: 0.3, borderRadius: '0 4px 4px 0', 
-                            cursor: 'pointer', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', 
+                            cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', 
                             '&:hover': { bgcolor: isCurrentMonth ? 'rgba(46, 125, 50, 0.1)' : 'rgba(0,0,0,0.08)' } 
                           }}
                         >
@@ -376,7 +391,7 @@ const DispatchStatusPage = () => {
         </Box>
       </Paper>
 
-      {/* 우측 팝업 (기존 로직 보존) */}
+      {/* 우측 반납 팝업 */}
       <Drawer anchor="right" open={isPanelOpen} onClose={() => setIsPanelOpen(false)} PaperProps={{ sx: { width: { xs: '100%', sm: 420 }, p: 0 } }}>
         <Box sx={{ p: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'success.main', color: 'white' }}>
           <Typography variant="h6" fontWeight="bold">{t('dispatch.batch_return_target')}</Typography>

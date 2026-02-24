@@ -22,19 +22,29 @@ const MainPage = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  // Ref 선언부: 스크롤 및 화면 전환 대응
+  // ✅ Zustand에서 사이드바 상태와 유저 정보 가져오기
+  const { user, isSidebarOpen } = useStore(); 
+
   const calendarRef = useRef(null);
   const todayRef = useRef(null); 
   const scrollContainerRef = useRef(null); 
   const lastScrolledMonthRef = useRef(""); 
 
-  // 상태 관리
   const [currentDate, setCurrentDate] = useState(new Date());
   const [dispatchData, setDispatchData] = useState({});
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
 
   const periodMap = { 'ALL': t('dispatch.all_day'), 'AM': t('dispatch.am'), 'PM': t('dispatch.pm') };
+
+  useEffect(() => {
+    if (!isMobile && calendarRef.current) {
+      const timer = setTimeout(() => {
+        calendarRef.current.getApi().updateSize();
+      }, 250);
+      return () => clearTimeout(timer);
+    }
+  }, [isSidebarOpen, isMobile]);
 
   const fetchDispatchData = async (targetDate) => {
     try {
@@ -54,7 +64,6 @@ const MainPage = () => {
 
   useEffect(() => { fetchDispatchData(currentDate); }, [currentDate]);
 
-  // 스마트 스크롤 및 확대/축소 시 날짜 유지 로직
   useEffect(() => {
     if (dispatchData) {
       const now = new Date();
@@ -127,6 +136,9 @@ const MainPage = () => {
     const now = new Date();
     const isThisMonth = now.getFullYear() === year && now.getMonth() === month;
 
+    // ✅ 주차 계산용 오프셋 (1일의 요일 인덱스)
+    const firstDayIndex = new Date(year, month, 1).getDay();
+
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
       const dateStr = date.toLocaleDateString('sv-SE');
@@ -135,8 +147,9 @@ const MainPage = () => {
       const isSat = date.getDay() === 6;
       const isToday = isThisMonth && now.getDate() === day;
 
-      if (day === 1 || date.getDay() === 1) {
-        const weekNum = Math.ceil((day + new Date(year, month, 1).getDay() - 1) / 7) - 1;
+      // ✅ [수정] 1일이거나 일요일(0)일 때 주차 구분선 표시
+      if (day === 1 || date.getDay() === 0) {
+        const weekNum = Math.ceil((day + firstDayIndex) / 7); // 올바른 주차 계산식
         listItems.push(
           <Box key={`week-${weekNum}`} sx={{ bgcolor: 'action.hover', py: 0.5, px: 2, borderY: '1px solid #eee' }}>
             <Typography variant="caption" fontWeight="bold" color="text.secondary">{weekNum}{t('calendar.week', '주차')}</Typography>
@@ -172,23 +185,12 @@ const MainPage = () => {
   };
 
   return (
-    <Box sx={{ p: isMobile ? 1 : 2, height: '90vh', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ p: isMobile ? 1 : 2, height: '90vh', width: '100%', display: 'flex', flexDirection: 'column' }}>
       
-      {/* 모바일 3단 반응형 헤더 적용 */}
       <Stack direction="column" spacing={isMobile ? 1.5 : 2} sx={{ mb: 2 }}>
-        {/* 1단: 제목 */}
-        <Typography variant="h5" fontWeight="bold">
-          {t('menu.dashboard')}
-        </Typography>
+        <Typography variant="h5" fontWeight="bold">{t('menu.dashboard')}</Typography>
 
-        {/* 2단 & 3단 컨테이너 */}
-        <Stack 
-          direction={{ xs: 'column', md: 'row' }} 
-          spacing={1.5} 
-          justifyContent="space-between" 
-          alignItems={{ xs: 'stretch', md: 'center' }}
-        >
-          {/* 2단: 현재 날짜 및 화살표 조작 */}
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ xs: 'stretch', md: 'center' }}>
           <Stack direction="row" alignItems="center" spacing={1} sx={{ justifyContent: isMobile ? 'center' : 'flex-start' }}>
             <Typography variant={isMobile ? "h6" : "h5"} fontWeight="bold" sx={{ minWidth: isMobile ? 110 : 160 }}>
                 {currentDate.toLocaleString(i18n.language, { year: 'numeric', month: 'long' })}
@@ -199,7 +201,6 @@ const MainPage = () => {
             </Box>
           </Stack>
 
-          {/* 3단: 필터 및 오늘 버튼 */}
           <Stack direction="row" spacing={0.5} justifyContent={isMobile ? 'center' : 'flex-end'}>
             <FormControl size="small" sx={{ minWidth: 85 }}>
                 <InputLabel id="year-label">{t('calendar.year')}</InputLabel>
@@ -218,7 +219,6 @@ const MainPage = () => {
         </Stack>
       </Stack>
 
-      {/* 메인 영역 */}
       <Paper sx={{ p: isMobile ? 0 : 2, flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <Box ref={scrollContainerRef} sx={{ flexGrow: 1, overflow: 'auto' }}>
           {isMobile ? (
@@ -234,6 +234,7 @@ const MainPage = () => {
               headerToolbar={false} 
               fixedWeekCount={true} 
               showNonCurrentDates={true} 
+              expandRows={true} 
               datesSet={handleDatesSet}
               dayCellContent={(arg) => {
                 const dateStr = arg.date.toLocaleDateString('sv-SE'); 
@@ -265,7 +266,7 @@ const MainPage = () => {
         </Box>
       </Paper>
 
-      {/* 우측 상세 정보 팝업 (디자인 유지) */}
+      {/* 우측 상세 정보 팝업 */}
       <Drawer anchor="right" open={isPanelOpen} onClose={() => setIsPanelOpen(false)} PaperProps={{ sx: { width: { xs: '100%', sm: 420 }, p: 0 } }}>
         {selectedItem && (() => {
           const isItemReturned = selectedItem.DISPATCH_STATUS === 'RETURNED' || (selectedItem.ACTION_TYPE && selectedItem.ACTION_TYPE.includes('반납'));

@@ -17,17 +17,20 @@ import useStore from '../../context/store';
 
 const ManagementPage = () => {
   const { t, i18n } = useTranslation();
-  const { user } = useStore(); 
+  
+  // ✅ Zustand에서 유저 정보와 사이드바 상태 가져오기
+  const { user, isSidebarOpen } = useStore(); 
+  
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm')); 
   
-  // ✅ Ref 선언부: 스크롤 제어 및 화면 크기 전환 시 튕김 방지
+  // Ref 선언부: 스크롤 제어 및 화면 크기 전환 시 튕김 방지
   const calendarRef = useRef(null);
   const todayRef = useRef(null); 
   const scrollContainerRef = useRef(null); 
   const lastScrolledMonthRef = useRef(""); 
   
-  // ✅ 상태 관리 (기존 로직 유지)
+  // 상태 관리 (기존 로직 유지)
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [managementData, setManagementData] = useState({}); 
@@ -45,7 +48,18 @@ const ManagementPage = () => {
     note: ''
   });
 
-  // ✅ 초기 데이터 로드 (차량 및 공통코드)
+  // ✅ [핵심 추가] 사이드바가 접히거나 펼쳐질 때 달력 크기를 강제로 다시 맞춤
+  useEffect(() => {
+    if (!isMobile && calendarRef.current) {
+      const timer = setTimeout(() => {
+        const api = calendarRef.current.getApi();
+        api.updateSize(); // 텅 빈 공간을 채우기 위해 크기 재계산
+      }, 250); // 사이드바 애니메이션 시간(0.25초)에 맞춤
+      return () => clearTimeout(timer);
+    }
+  }, [isSidebarOpen, isMobile]);
+
+  // 초기 데이터 로드 (차량 및 공통코드)
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
@@ -70,7 +84,7 @@ const ManagementPage = () => {
     return acc;
   }, {});
 
-  // ✅ 월별 점검 이력 로드
+  // 월별 점검 이력 로드
   const fetchManagementData = async (targetDate) => {
     try {
       const year = targetDate.getFullYear();
@@ -93,7 +107,7 @@ const ManagementPage = () => {
     fetchManagementData(currentDate);
   }, [currentDate]);
 
-  // ✅ [기능] 스마트 스크롤 & 확대/축소 시 날짜 동기화
+  // 스마트 스크롤 & 확대/축소 시 날짜 동기화
   useEffect(() => {
     if (managementData) {
       const now = new Date();
@@ -163,7 +177,6 @@ const ManagementPage = () => {
     else fetchManagementData(newDate);
   };
 
-  // ✅ [기존 유지] 핸들러 로직들
   const handleDateSelect = (arg) => {
     setIsViewMode(false);
     const dateStr = typeof arg === 'string' ? arg : arg.startStr;
@@ -224,13 +237,14 @@ const ManagementPage = () => {
     }
   };
 
-  // ✅ 모바일 리스트 렌더링 (가나다순 정렬 적용)
   const renderMobileList = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const listItems = [];
     const now = new Date();
+
+    const firstDayIndex = new Date(year, month, 1).getDay();
 
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
@@ -240,12 +254,16 @@ const ManagementPage = () => {
       const isSat = date.getDay() === 6;
       const isToday = now.getFullYear() === year && now.getMonth() === month && now.getDate() === day;
 
-      if (day === 1 || date.getDay() === 1) {
-        const weekNum = Math.ceil((day + new Date(year, month, 1).getDay()) / 7) - 1;
-        listItems.push(
-          <Box key={`week-${weekNum}`} sx={{ bgcolor: 'action.hover', py: 0.5, px: 2, borderY: '1px solid #eee' }}>
-            <Typography variant="caption" fontWeight="bold" color="text.secondary">{weekNum}{t('calendar.week', '주차')}</Typography>
-          </Box>
+      if (day === 1 || date.getDay() === 0) {
+      // Math.ceil을 이용해 0주차 없이 1주차부터 시작하도록 계산
+      const weekNum = Math.ceil((day + firstDayIndex) / 7); 
+      
+      listItems.push(
+        <Box key={`week-${weekNum}`} sx={{ bgcolor: 'action.hover', py: 0.5, px: 2, borderY: '1px solid #eee' }}>
+          <Typography variant="caption" fontWeight="bold" color="text.secondary">
+            {weekNum}{t('calendar.week', '주차')}
+          </Typography>
+        </Box>
         );
       }
 
@@ -278,21 +296,11 @@ const ManagementPage = () => {
   return (
     <Box sx={{ p: isMobile ? 1 : 2, height: '90vh', display: 'flex', flexDirection: 'column' }}>
       
-      {/* ✅ [모바일 3단 반응형 헤더] */}
+      {/* 모바일 3단 반응형 헤더 */}
       <Stack direction="column" spacing={isMobile ? 1.5 : 2} sx={{ mb: 2 }}>
-        {/* 1단: 제목 */}
-        <Typography variant="h5" fontWeight="bold">
-          {t('menu.management')}
-        </Typography>
+        <Typography variant="h5" fontWeight="bold">{t('menu.management')}</Typography>
 
-        {/* 2단 & 3단 컨테이너 */}
-        <Stack 
-          direction={{ xs: 'column', md: 'row' }} 
-          spacing={1.5} 
-          justifyContent="space-between" 
-          alignItems={{ xs: 'stretch', md: 'center' }}
-        >
-          {/* 2단: 날짜 및 이동 화살표 */}
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ xs: 'stretch', md: 'center' }}>
           <Stack direction="row" alignItems="center" spacing={1} sx={{ justifyContent: isMobile ? 'center' : 'flex-start' }}>
             <Typography variant={isMobile ? "h6" : "h5"} fontWeight="bold" sx={{ minWidth: isMobile ? 110 : 160 }}>
               {currentDate.toLocaleString(i18n.language, { year: 'numeric', month: 'long' })}
@@ -303,7 +311,6 @@ const ManagementPage = () => {
             </Box>
           </Stack>
 
-          {/* 3단: 년/월 선택 및 오늘 버튼 */}
           <Stack direction="row" spacing={0.5} justifyContent={isMobile ? 'center' : 'flex-end'}>
             <FormControl size="small" sx={{ minWidth: 85 }}>
                 <InputLabel id="year-label">{t('calendar.year')}</InputLabel>
@@ -322,10 +329,8 @@ const ManagementPage = () => {
         </Stack>
       </Stack>
 
-      {/* ✅ 메인 영역 */}
+      {/* 메인 영역 */}
       <Paper sx={{ p: isMobile ? 0 : 2, flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {!isMobile && <Divider sx={{ mb: 2 }} />}
-        
         <Box ref={scrollContainerRef} sx={{ flexGrow: 1, overflow: 'auto' }}>
           {isMobile ? (
             <Box sx={{ height: '100%' }}>{renderMobileList()}</Box>
@@ -344,7 +349,7 @@ const ManagementPage = () => {
               fixedWeekCount={true}
               showNonCurrentDates={true}
               datesSet={handleDatesSet}
-              expandRows={true}
+              expandRows={true} // ✅ 세로 빈 공간 방지
               dayCellContent={(arg) => {
                 const dateStr = arg.date.toLocaleDateString('sv-SE'); 
                 const dayItems = managementData[dateStr] || [];
@@ -357,7 +362,6 @@ const ManagementPage = () => {
                       </Typography>
                     </Box>
                     <Box sx={{ position: 'absolute', top: '32px', bottom: 0, left: 0, right: 0, display: 'flex', flexDirection: 'column', gap: '3px', px: '2px', pb: '4px', overflowY: 'auto' }}>
-                      {/* ✅ [정렬 적용] PC 버전에서도 차량 이름 가나다순 정렬 */}
                       {[...dayItems].sort((a, b) => (a.VEHICLE_NAME || '').localeCompare(b.VEHICLE_NAME || '', 'ko')).map((item, i) => (
                         <Box key={i} onClick={(e) => handleItemClick(e, item)} sx={{ width: '100%', minHeight: '22px', borderLeft: '4px solid', borderColor: isCurrentMonth ? 'primary.main' : 'text.disabled', bgcolor: isCurrentMonth ? 'rgba(25, 118, 210, 0.05)' : 'rgba(0, 0, 0, 0.04)', color: isCurrentMonth ? 'primary.dark' : 'text.secondary', fontSize: '13px', fontWeight: 600, pl: 0.8, py: 0.3, borderRadius: '0 4px 4px 0', cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', '&:hover': { bgcolor: isCurrentMonth ? 'rgba(25, 118, 210, 0.1)' : 'rgba(0,0,0,0.08)' } }}>
                           {item.VEHICLE_NAME} ({typeMap[item.MANAGEMENT_TYPE] || t('management.content')})
@@ -372,7 +376,7 @@ const ManagementPage = () => {
         </Box>
       </Paper>
 
-      {/* 우측 팝업 (기존 기능 100% 보존) */}
+      {/* 우측 팝업 */}
       <Drawer anchor="right" open={isPanelOpen} onClose={() => { setIsPanelOpen(false); if (!isMobile) calendarRef.current.getApi().unselect(); }} PaperProps={{ sx: { width: { xs: '100%', sm: 420 }, p: 0 } }}>
         <Box sx={{ p: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'primary.main', color: 'white' }}>
           <Typography variant="h6" fontWeight="bold">{t('menu.management')}</Typography>

@@ -165,7 +165,7 @@
     "load_fail": "이력 로드 실패"
   },
   "log": {
-    "title": "업무용승용차 운행기록부",
+    "title": "운행 기록부",
     "download_btn": "양식 다운로드",
     "select_vehicle": "차량 선택",
     "select_month": "조회 월",

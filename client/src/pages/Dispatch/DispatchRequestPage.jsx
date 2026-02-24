@@ -17,7 +17,10 @@ import useStore from '../../context/store';
 
 const DispatchRequestPage = () => {
   const { t, i18n } = useTranslation();
-  const { user } = useStore();
+  
+  // ✅ Zustand에서 유저 정보와 사이드바 상태 가져오기
+  const { user, isSidebarOpen } = useStore();
+  
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
@@ -38,6 +41,8 @@ const DispatchRequestPage = () => {
   const [dispatchData, setDispatchData] = useState({}); 
   const [periodOptions, setPeriodOptions] = useState([]); 
   const [bizTypeOptions, setBizTypeOptions] = useState([]); 
+  
+  // ✅ 예약 기간 상태 (모바일 범위 선택을 위해 구조 유지)
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   
   const [formData, setFormData] = useState({
@@ -49,6 +54,17 @@ const DispatchRequestPage = () => {
     'AM': t('dispatch.am'),
     'PM': t('dispatch.pm')
   };
+
+  // ✅ 사이드바 상태 변경 시 달력 크기 강제 재계산 로직
+  useEffect(() => {
+    if (!isMobile && calendarRef.current) {
+      const timer = setTimeout(() => {
+        const api = calendarRef.current.getApi();
+        api.updateSize(); 
+      }, 250); 
+      return () => clearTimeout(timer);
+    }
+  }, [isSidebarOpen, isMobile]);
 
   // ✅ 초기 데이터 로드 (차량 목록 및 공통코드)
   const fetchData = async () => {
@@ -122,7 +138,6 @@ const DispatchRequestPage = () => {
     }
   }, [currentDate, isMobile, dispatchData]);
 
-  // ✅ 캘린더 드래그/스와이프 이동 시 날짜 업데이트
   const handleDatesSet = (dateInfo) => {
     const activeDate = dateInfo.view.currentStart;
     if (activeDate.getMonth() !== currentDate.getMonth() || activeDate.getFullYear() !== currentDate.getFullYear()) {
@@ -131,27 +146,20 @@ const DispatchRequestPage = () => {
     }
   };
 
-  // ✅ 상단 컨트롤러 (이전/다음/오늘/점프) 핸들러
   const handlePrev = () => {
     lastScrolledMonthRef.current = ""; 
     if (isMobile) {
       const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
-      setCurrentDate(newDate);
-      fetchDispatchData(newDate);
-    } else {
-      calendarRef.current.getApi().prev();
-    }
+      setCurrentDate(newDate); fetchDispatchData(newDate);
+    } else calendarRef.current.getApi().prev();
   };
 
   const handleNext = () => {
     lastScrolledMonthRef.current = ""; 
     if (isMobile) {
       const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
-      setCurrentDate(newDate);
-      fetchDispatchData(newDate);
-    } else {
-      calendarRef.current.getApi().next();
-    }
+      setCurrentDate(newDate); fetchDispatchData(newDate);
+    } else calendarRef.current.getApi().next();
   };
 
   const handleToday = () => {
@@ -159,25 +167,19 @@ const DispatchRequestPage = () => {
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
     setCurrentDate(firstDay);
-    if (isMobile) {
-      fetchDispatchData(firstDay);
-    } else {
-      calendarRef.current.getApi().today();
-    }
+    if (isMobile) fetchDispatchData(firstDay);
+    else calendarRef.current.getApi().today();
   };
 
   const handleJumpDate = (year, month) => {
     lastScrolledMonthRef.current = ""; 
     const newDate = new Date(year, month - 1, 1);
     setCurrentDate(newDate);
-    if (isMobile) {
-      fetchDispatchData(newDate);
-    } else {
-      calendarRef.current.getApi().gotoDate(`${year}-${String(month).padStart(2, '0')}-01`);
-    }
+    if (isMobile) fetchDispatchData(newDate);
+    else calendarRef.current.getApi().gotoDate(`${year}-${String(month).padStart(2, '0')}-01`);
   };
 
-  // ✅ [기존 유지] 배차 항목 클릭 시 자동 그룹화 로직
+  // ✅ 배차 항목 클릭 시 자동 그룹화 로직
   const handleItemClick = (e, item) => {
     if (e) e.stopPropagation();
 
@@ -306,6 +308,9 @@ const DispatchRequestPage = () => {
     const dates = [];
     let curr = new Date(start);
     const last = new Date(end);
+    // 종료일이 시작일보다 과거면 시작일만 반환 (오류 방지)
+    if (curr > last) return [start];
+    
     while (curr <= last) {
       const tzOffset = curr.getTimezoneOffset() * 60000;
       dates.push(new Date(curr.getTime() - tzOffset).toISOString().split('T')[0]);
@@ -343,13 +348,16 @@ const DispatchRequestPage = () => {
     }
   };
 
-  // ✅ 모바일 리스트 렌더링 (가나다순 정렬 적용)
+  // ✅ [수정] 모바일 리스트 렌더링 (주차 계산 오류 수정)
   const renderMobileList = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const listItems = [];
     const now = new Date();
+
+    // ✅ 이번 달 1일의 요일 인덱스 (0: 일요일 ~ 6: 토요일)
+    const firstDayIndex = new Date(year, month, 1).getDay();
 
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
@@ -359,8 +367,11 @@ const DispatchRequestPage = () => {
       const isSat = date.getDay() === 6;
       const isToday = now.getFullYear() === year && now.getMonth() === month && now.getDate() === day;
 
-      if (day === 1 || date.getDay() === 1) {
-        const weekNum = Math.ceil((day + new Date(year, month, 1).getDay()) / 7) - 1;
+      // ✅ [수정] 일요일(0)을 기준으로 주차 구분선 표시
+      if (day === 1 || date.getDay() === 0) {
+        // -1을 없애고 직관적인 올림 계산으로 변경 (1~4일이 1주차, 5일부터 2주차)
+        const weekNum = Math.ceil((day + firstDayIndex) / 7); 
+        
         listItems.push(
           <Box key={`week-${weekNum}`} sx={{ bgcolor: 'action.hover', py: 0.5, px: 2, borderY: '1px solid #eee' }}>
             <Typography variant="caption" fontWeight="bold" color="text.secondary">
@@ -382,7 +393,6 @@ const DispatchRequestPage = () => {
             <Typography variant="caption" sx={{ color: isSun ? 'error.main' : isSat ? 'primary.main' : 'text.secondary' }}>{t(`weekdays.${date.getDay()}`)}</Typography>
           </Box>
           <Box sx={{ flexGrow: 1, p: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-            {/* ✅ [정렬 적용] 차량 이름 가나다순 정렬 후 렌더링 */}
             {dayItems.length > 0 ? [...dayItems].sort((a, b) => (a.VEHICLE_NAME || '').localeCompare(b.VEHICLE_NAME || '', 'ko')).map((v, i) => (
               <Box key={i} onClick={(e) => handleItemClick(e, v)} sx={{ borderLeft: '4px solid #1976d2', bgcolor: 'rgba(25, 118, 210, 0.05)', px: 1, py: 0.5, borderRadius: '0 4px 4px 0', fontSize: '13px', fontWeight: 600, color: '#1976d2', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {v.VEHICLE_NAME} ({periodMap[v.RENTAL_PERIOD] || '종일'}) - {v.MEMBER_NAME}
@@ -400,21 +410,18 @@ const DispatchRequestPage = () => {
   return (
     <Box sx={{ p: isMobile ? 1 : 2, height: '90vh', display: 'flex', flexDirection: 'column' }}>
       
-      {/* ✅ [모바일 3단 반응형 헤더] */}
+      {/* 모바일 3단 반응형 헤더 */}
       <Stack direction="column" spacing={isMobile ? 1.5 : 2} sx={{ mb: 2 }}>
-        {/* 1단: 제목 */}
         <Typography variant="h5" fontWeight="bold">
           {t('menu.dispatch_request')}
         </Typography>
 
-        {/* 2단 & 3단 컨테이너 */}
         <Stack 
           direction={{ xs: 'column', md: 'row' }} 
           spacing={1.5} 
           justifyContent="space-between" 
           alignItems={{ xs: 'stretch', md: 'center' }}
         >
-          {/* 2단: 현재 날짜 및 화살표 조작 */}
           <Stack direction="row" alignItems="center" spacing={1} sx={{ justifyContent: isMobile ? 'center' : 'flex-start' }}>
             <Typography variant={isMobile ? "h6" : "h5"} fontWeight="bold" sx={{ minWidth: isMobile ? 110 : 160 }}>
               {currentDate.toLocaleString(i18n.language, { year: 'numeric', month: 'long' })}
@@ -425,7 +432,6 @@ const DispatchRequestPage = () => {
             </Box>
           </Stack>
 
-          {/* 3단: 필터 및 오늘 버튼 */}
           <Stack direction="row" spacing={0.5} justifyContent={isMobile ? 'center' : 'flex-end'}>
             <FormControl size="small" sx={{ minWidth: 85 }}>
                 <InputLabel id="year-label">{t('calendar.year')}</InputLabel>
@@ -464,6 +470,7 @@ const DispatchRequestPage = () => {
               selectMirror={true}
               fixedWeekCount={true}
               showNonCurrentDates={true}
+              expandRows={true}
               select={handleDateSelect}
               datesSet={handleDatesSet}
               longPressDelay={0}
@@ -483,7 +490,6 @@ const DispatchRequestPage = () => {
                       </Typography>
                     </Box>
                     <Box sx={{ position: 'absolute', top: '32px', bottom: 0, left: 0, right: 0, display: 'flex', flexDirection: 'column', gap: '3px', px: '2px', pb: '4px', overflowY: 'auto' }}>
-                      {/* ✅ [정렬 적용] PC 버전에서도 차량 이름 가나다순 정렬 */}
                       {[...dayItems].sort((a, b) => (a.VEHICLE_NAME || '').localeCompare(b.VEHICLE_NAME || '', 'ko')).map((v, i) => (
                         <Box key={i} onClick={(e) => handleItemClick(e, v)} 
                           sx={{ 
@@ -508,7 +514,7 @@ const DispatchRequestPage = () => {
         </Box>
       </Paper>
 
-      {/* 우측 팝업 */}
+      {/* 우측 신청 팝업 */}
       <Drawer anchor="right" open={isPanelOpen} onClose={() => setIsPanelOpen(false)} PaperProps={{ sx: { width: { xs: '100%', sm: 420 }, p: 0 } }}>
         <Box sx={{ p: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: isEditMode ? 'error.main' : 'primary.main', color: 'white' }}>
           <Typography variant="h6" fontWeight="bold">{isEditMode ? t('dispatch.cancel_btn') : t('menu.dispatch_request')}</Typography>
@@ -520,15 +526,25 @@ const DispatchRequestPage = () => {
               <Typography variant="caption" color="text.secondary">{t('dispatch.applicant')}</Typography>
               <Typography variant="body1" fontWeight="bold">{isEditMode ? formData.memberName : user?.name}</Typography>
               <Divider sx={{ my: 1 }} />
+              
+              {/* ✅ [개선] 모바일 범위 선택 대응: 시작날짜 고정, 종료날짜는 Date Picker로 변경 가능하게 수정 */}
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="caption" color="text.secondary">
                   {t('dispatch.rental_period')} {isEditMode && selectedDispatchGroup.length > 1 && t('dispatch.auto_grouped')}
                 </Typography>
                 {isEditMode && selectedDispatchGroup.length > 1 && <Chip label={t('dispatch.batch_cancel_target')} color="error" size="small" sx={{ height: 20, fontSize: '0.7rem' }} />}
               </Box>
-              <Typography variant="body2" fontWeight="bold" color={isEditMode ? "error" : "text.primary"} sx={{ mt: 0.5 }}>
-                {dateRange.start} {dateRange.start !== dateRange.end ? `~ ${dateRange.end} (${isEditMode ? selectedDispatchGroup.length : getDatesInRange(dateRange.start, dateRange.end).length}${t('calendar.day', 'd')})` : ''}
-              </Typography>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
+                <TextField type="date" size="small" value={dateRange.start} disabled fullWidth />
+                <Typography>~</Typography>
+                {/* 종료일은 신규 등록일 때만 선택 가능, 수정(취소) 모드일 땐 고정 */}
+                <TextField type="date" size="small" value={dateRange.end} 
+                  disabled={isEditMode} 
+                  onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })} 
+                  fullWidth 
+                  inputProps={{ min: dateRange.start }} 
+                />
+              </Stack>
             </Paper>
 
             <TextField select label={t('dispatch.period_type')} value={formData.period} fullWidth disabled={isEditMode} onChange={(e) => setFormData({...formData, period: e.target.value})}>
