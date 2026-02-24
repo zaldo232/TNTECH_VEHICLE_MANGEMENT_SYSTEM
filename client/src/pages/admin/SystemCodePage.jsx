@@ -41,7 +41,7 @@ const SystemCodePage = () => {
   const [isEdit, setIsEdit] = useState(false);
   const [formData, setFormData] = useState({ groupCode: '', contentCode: '', codeName: '', sortOrder: 0 });
 
-  // ✅ [로직 압축] 복합키 ID 처리는 훅 내부에서 자동으로 수행됨
+  // 복합키 ID 처리는 훅 내부에서 자동으로 수행됨
   const { filteredRows, searchText, handleSearch, fetchData } = useDataTable(
     '/api/system/codes',
     ['GROUP_CODE', 'CODE_NAME']
