@@ -1,17 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import DataTable from '../../components/common/DataTable';
 import axios from 'axios';
-import { Box, TextField, MenuItem } from '@mui/material';
+import { Box, TextField } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 
-// ✅ 공통 컴포넌트 임포트 (이 두 개가 수백 줄을 대신합니다)
 import SearchFilterBar from '../../components/common/SearchFilterBar';
 import CommonDialog from '../../components/common/CommonDialog'; 
+import CommonCodeSelect from '../../components/common/CommonCodeSelect';
 
 const MemberPage = () => {
   const { t } = useTranslation();
 
-  // 상태 관리
   const [members, setMembers] = useState([]);         
   const [filteredMembers, setFilteredMembers] = useState([]); 
   const [searchText, setSearchText] = useState('');     
@@ -21,11 +20,7 @@ const MemberPage = () => {
   const [formData, setFormData] = useState({ 
     memberId: '', password: '', name: '', dept: '', role: '' 
   });
-  
-  const [deptOptions, setDeptOptions] = useState([]);
-  const [roleOptions, setRoleOptions] = useState([]);
 
-  // 그리드 컬럼 정의
   const columns = [
     { field: 'MEMBER_ID', headerName: t('member.id'), width: 150 },
     { field: 'MEMBER_NAME', headerName: t('member.name'), width: 150 },
@@ -33,7 +28,6 @@ const MemberPage = () => {
     { field: 'ROLE_NAME', headerName: t('member.role'), width: 150 },
   ];
 
-  // 데이터 불러오기
   const fetchData = async () => {
     try {
       const res = await axios.get('/api/admin/members');
@@ -41,16 +35,11 @@ const MemberPage = () => {
       setMembers(rowsWithId);
       setFilteredMembers(rowsWithId); 
       
-      const dRes = await axios.get('/api/system/code/부서');
-      const rRes = await axios.get('/api/system/code/직급');
-      setDeptOptions(dRes.data.list || []);
-      setRoleOptions(rRes.data.list || []);
     } catch (err) { console.error('데이터 로딩 실패:', err); }
   };
 
   useEffect(() => { fetchData(); }, []);
 
-  // 검색 기능
   const handleSearch = (e) => {
     const value = e.target.value;
     setSearchText(value);
@@ -64,9 +53,9 @@ const MemberPage = () => {
     }
   };
 
-  // 팝업 조작 핸들러
   const handleOpenAdd = () => {
     setIsEdit(false);
+    // 모달을 열 땐 그냥 값을 텅 비워서 열면 됩니다!
     setFormData({ memberId: '', password: '', name: '', dept: '', role: '' });
     setOpen(true);
   };
@@ -80,15 +69,11 @@ const MemberPage = () => {
     setOpen(true);
   };
 
-  // 저장 및 삭제 로직
   const handleDelete = async () => {
     if (window.confirm(t('common.confirm_delete'))) {
       try {
-        const res = await axios.delete(`/api/admin/members?memberId=${formData.memberId}`);
-        if (res.data.success) {
-          alert(t('common.deleted'));
-          setOpen(false); fetchData();
-        }
+        await axios.delete(`/api/admin/members?memberId=${formData.memberId}`);
+        alert(t('common.deleted')); setOpen(false); fetchData();
       } catch (err) { alert(t('common.delete_failed')); }
     }
   };
@@ -108,7 +93,6 @@ const MemberPage = () => {
   return (
     <Box sx={{ p: 2, height: '100vh', display: 'flex', flexDirection: 'column' }}>
       
-      {/* 1. 상단 검색 및 컨트롤 바 */}
       <SearchFilterBar 
         title={t('menu.member_mgmt')}
         searchQuery={searchText}
@@ -118,12 +102,10 @@ const MemberPage = () => {
         searchPlaceholder={t('member.search_placeholder')}
       />
 
-      {/* 2. 데이터 표 영역 */}
       <Box sx={{ flexGrow: 1, width: '100%', minHeight: 0 }}>
         <DataTable columns={columns} rows={filteredMembers} onRowClick={handleRowClick} />
       </Box>
 
-      {/* 3. 등록/수정 팝업 모달 (껍데기가 완전히 사라지고 알맹이 폼만 남음!) */}
       <CommonDialog
         open={open}
         onClose={() => setOpen(false)}
@@ -138,13 +120,21 @@ const MemberPage = () => {
         )}
         <TextField label={t('member.name')} value={formData.name} fullWidth onChange={(e) => setFormData({...formData, name: e.target.value})} />
         
-        <TextField select label={t('member.dept')} value={formData.dept} fullWidth onChange={(e) => setFormData({...formData, dept: e.target.value})}>
-          {deptOptions.map(opt => <MenuItem key={opt.CONTENT_CODE} value={opt.CONTENT_CODE}>{opt.CODE_NAME}</MenuItem>)}
-        </TextField>
+        {/* 여기입니다! 이 한 줄로 '부서' 리스트를 서버에서 가져와 쫙 그려줍니다! */}
+        <CommonCodeSelect 
+          groupCode="부서" 
+          label={t('member.dept')} 
+          value={formData.dept} 
+          onChange={(e) => setFormData({...formData, dept: e.target.value})} 
+        />
 
-        <TextField select label={t('member.role')} value={formData.role} fullWidth onChange={(e) => setFormData({...formData, role: e.target.value})}>
-          {roleOptions.map(opt => <MenuItem key={opt.CONTENT_CODE} value={opt.CONTENT_CODE}>{opt.CODE_NAME}</MenuItem>)}
-        </TextField>
+        {/* 여기도 '직급' 리스트를 서버에서 가져와 그려줍니다! */}
+        <CommonCodeSelect 
+          groupCode="직급" 
+          label={t('member.role')} 
+          value={formData.role} 
+          onChange={(e) => setFormData({...formData, role: e.target.value})} 
+        />
       </CommonDialog>
       
     </Box>

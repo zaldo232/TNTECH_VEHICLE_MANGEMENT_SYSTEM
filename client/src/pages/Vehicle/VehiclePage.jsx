@@ -3,15 +3,16 @@ import DataTable from '../../components/common/DataTable';
 import axios from 'axios';
 import { 
   Box, Button, TextField, Dialog, DialogTitle, DialogContent, 
-  DialogActions, MenuItem, Stack, InputAdornment, FormControlLabel, Checkbox, Typography, Divider, useMediaQuery 
+  DialogActions, Stack, InputAdornment, FormControlLabel, Checkbox, Typography, Divider, useMediaQuery 
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import SettingsIcon from '@mui/icons-material/Settings';
 import { useTranslation } from 'react-i18next';
 
-// ✅ 공통 컴포넌트 임포트
+// 공통 컴포넌트 임포트
 import SearchFilterBar from '../../components/common/SearchFilterBar';
 import CommonDialog from '../../components/common/CommonDialog';
+import CommonCodeSelect from '../../components/common/CommonCodeSelect';
 
 const VehiclePage = () => {
   const { t } = useTranslation();
@@ -27,12 +28,11 @@ const VehiclePage = () => {
   const [formData, setFormData] = useState({ 
     licensePlate: '', vehicleName: '', mileage: 0, status: 'AVAILABLE', isManaged: 'Y' 
   });
-  const [statusOptions, setStatusOptions] = useState([]);
 
   const [managementSettingsOpen, setManagementSettingsOpen] = useState(false);
   const [managementSettings, setManagementSettings] = useState([]);
 
-  // 컬럼 정의 (기존 경고/주의 로직 완벽 보존)
+  // 컬럼 정의 (기존 경고/주의 로직 보존)
   const columns = [
     { field: 'LICENSE_PLATE', headerName: t('vehicle.plate'), width: 130 },
     { field: 'VEHICLE_NAME', headerName: t('vehicle.model'), width: 150 },
@@ -83,9 +83,7 @@ const VehiclePage = () => {
       const rows = res.data.map(v => ({ ...v, id: v.LICENSE_PLATE }));
       setVehicles(rows);
       setFilteredVehicles(rows);
-      
-      const cRes = await axios.get('/api/system/code/차량상태');
-      setStatusOptions(cRes.data.list || cRes.data || []);
+      // 공통코드 수동 fetch 로직 삭제됨
     } catch (err) { console.error(t('vehicle.data_load_fail'), err); }
   };
 
@@ -124,20 +122,14 @@ const VehiclePage = () => {
       const res = await axios.get(`/api/vehicles/management-settings?licensePlate=${formData.licensePlate}`);
       setManagementSettings(res.data);
       setManagementSettingsOpen(true);
-    } catch (err) { 
-      alert(t('vehicle.load_settings_fail')); 
-    }
+    } catch (err) { alert(t('vehicle.load_settings_fail')); }
   };
 
   const handleSaveManagementSettings = async () => {
     try {
-      await axios.post('/api/vehicles/management-settings', {
-        licensePlate: formData.licensePlate,
-        settings: managementSettings
-      });
+      await axios.post('/api/vehicles/management-settings', { licensePlate: formData.licensePlate, settings: managementSettings });
       alert(t('vehicle.save_settings_success'));
-      setManagementSettingsOpen(false);
-      fetchData(); 
+      setManagementSettingsOpen(false); fetchData(); 
     } catch (err) { alert(t('common.save_failed')); }
   };
 
@@ -145,57 +137,49 @@ const VehiclePage = () => {
     if (window.confirm(t('common.confirm_delete'))) {
       try {
         await axios.delete(`/api/vehicles?licensePlate=${formData.licensePlate}`);
-        alert(t('common.deleted'));
-        setOpen(false);
-        fetchData();
+        alert(t('common.deleted')); setOpen(false); fetchData();
       } catch (err) { alert(t('common.delete_failed')); }
     }
   };
 
   const handleSave = async () => {
-    if (!formData.licensePlate || !formData.vehicleName) {
-      alert(t('common.fill_required'));
-      return;
-    }
+    if (!formData.licensePlate || !formData.vehicleName) return alert(t('common.fill_required'));
     try {
       await axios.post('/api/vehicles', formData);
       alert(isEdit ? t('common.save_edit') : t('common.register'));
-      setOpen(false);
-      fetchData();
+      setOpen(false); fetchData();
     } catch (err) { alert(t('common.save_failed')); }
   };
 
   return (
     <Box sx={{ p: 2, height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      
       <SearchFilterBar 
-        title={t('menu.vehicle_mgmt')}
-        searchQuery={searchText}
-        onSearchChange={handleSearch}
-        onAdd={handleOpenAdd}
-        addBtnText={t('vehicle.register')}
-        searchPlaceholder={t('vehicle.search_placeholder')}
+        title={t('menu.vehicle_mgmt')} searchQuery={searchText} 
+        onSearchChange={handleSearch} onAdd={handleOpenAdd} 
+        addBtnText={t('vehicle.register')} searchPlaceholder={t('vehicle.search_placeholder')}
       />
 
       <Box sx={{ flexGrow: 1, width: '100%', minHeight: 0 }}>
         <DataTable columns={columns} rows={filteredVehicles} onRowClick={handleRowClick} />
       </Box>
 
-      {/* 정보 수정/등록 다이얼로그 (CommonDialog로 교체!) */}
+      {/* 차량 등록/수정 다이얼로그 */}
       <CommonDialog
-        open={open}
-        onClose={() => setOpen(false)}
-        title={isEdit ? t('vehicle.edit') : t('vehicle.register')}
-        isEdit={isEdit}
-        onSave={handleSave}
-        onDelete={handleDelete}
+        open={open} onClose={() => setOpen(false)} title={isEdit ? t('vehicle.edit') : t('vehicle.register')}
+        isEdit={isEdit} onSave={handleSave} onDelete={handleDelete}
       >
         <TextField label={t('vehicle.plate')} value={formData.licensePlate} disabled={isEdit} fullWidth onChange={(e) => setFormData({...formData, licensePlate: e.target.value})} />
         <TextField label={t('vehicle.model')} value={formData.vehicleName} fullWidth onChange={(e) => setFormData({...formData, vehicleName: e.target.value})} />
         <TextField label={t('vehicle.mileage')} type="number" value={formData.mileage} fullWidth onChange={(e) => setFormData({...formData, mileage: e.target.value})} />
-        <TextField select label={t('vehicle.status')} value={formData.status} fullWidth onChange={(e) => setFormData({...formData, status: e.target.value})}>
-          {statusOptions.map(opt => <MenuItem key={opt.CONTENT_CODE} value={opt.CONTENT_CODE}>{opt.CODE_NAME}</MenuItem>)}
-        </TextField>
+        
+        {/* 차량상태 스마트 드롭다운 적용! */}
+        <CommonCodeSelect 
+          groupCode="차량상태" 
+          label={t('vehicle.status')} 
+          value={formData.status} 
+          onChange={(e) => setFormData({...formData, status: e.target.value})} 
+        />
+        
         <FormControlLabel control={<Checkbox checked={formData.isManaged === 'Y'} onChange={(e) => setFormData({ ...formData, isManaged: e.target.checked ? 'Y' : 'N' })} />} label={t('vehicle.managed_checkbox')} />
         
         {isEdit && (
@@ -208,7 +192,7 @@ const VehiclePage = () => {
         )}
       </CommonDialog>
 
-      {/* 점검 주기 설정 다이얼로그 (커스텀 디자인이 있어 원본 보존) */}
+      {/* 점검 주기 설정 다이얼로그 (보존) */}
       <Dialog open={managementSettingsOpen} onClose={() => setManagementSettingsOpen(false)}>
         <DialogTitle sx={{ bgcolor: 'secondary.main', color: 'white', fontWeight: 'bold' }}>
           {t('vehicle.maintenance_settings_title')} ({formData.licensePlate})
@@ -228,7 +212,6 @@ const VehiclePage = () => {
           <Button variant="contained" color="secondary" onClick={handleSaveManagementSettings}>{t('vehicle.save_settings')}</Button>
         </DialogActions>
       </Dialog>
-
     </Box>
   );
 };

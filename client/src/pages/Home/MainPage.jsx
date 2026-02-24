@@ -100,7 +100,6 @@ const MainPage = () => {
                       </Typography>
                     </Box>
                     <Box sx={{ position: 'absolute', top: '32px', bottom: 0, left: 0, right: 0, display: 'flex', flexDirection: 'column', gap: '3px', px: '2px', pb: '4px', overflowY: 'auto' }}>
-                      {/* ✅ [수정] PC 달력용 다중 정렬 적용: 차량명 -> 대여상태 -> 이름 */}
                       {[...dayItems].sort((a, b) => {
                         const carA = a.VEHICLE_NAME || '';
                         const carB = b.VEHICLE_NAME || '';

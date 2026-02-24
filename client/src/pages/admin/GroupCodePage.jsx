@@ -11,17 +11,15 @@ import CommonDialog from '../../components/common/CommonDialog';
 const GroupCodePage = () => {
   const { t } = useTranslation();
 
+  // 상태 관리
   const [rows, setRows] = useState([]);                 
   const [filteredRows, setFilteredRows] = useState([]); 
   const [searchText, setSearchText] = useState('');     
-
   const [open, setOpen] = useState(false);              
   const [isEdit, setIsEdit] = useState(false);          
 
   const [formData, setFormData] = useState({
-    groupCode: '',
-    groupName: '',
-    description: ''
+    groupCode: '', groupName: '', description: ''
   });
 
   const columns = [
@@ -33,27 +31,19 @@ const GroupCodePage = () => {
   const fetchGroupCodes = async () => {
     try {
       const res = await axios.get('/api/system/groupcodes'); 
-      const rowsWithId = res.data.map((row) => ({
-        ...row,
-        id: row.GROUP_CODE
-      }));
+      const rowsWithId = res.data.map((row) => ({ ...row, id: row.GROUP_CODE }));
       setRows(rowsWithId);
       setFilteredRows(rowsWithId);
-    } catch (err) {
-      console.error('Fetch error:', err);
-    }
+    } catch (err) { console.error('Fetch error:', err); }
   };
 
-  useEffect(() => {
-    fetchGroupCodes();
-  }, []);
+  useEffect(() => { fetchGroupCodes(); }, []);
 
   const handleSearch = (e) => {
     const value = e.target.value;
     setSearchText(value);
-    if (value === '') {
-      setFilteredRows(rows);
-    } else {
+    if (value === '') setFilteredRows(rows);
+    else {
       const filtered = rows.filter((r) => 
         r.GROUP_CODE.toLowerCase().includes(value.toLowerCase()) || 
         r.GROUP_NAME.includes(value)
@@ -71,8 +61,7 @@ const GroupCodePage = () => {
   const handleRowClick = (row) => {
     setIsEdit(true);
     setFormData({
-      groupCode: row.GROUP_CODE,
-      groupName: row.GROUP_NAME,
+      groupCode: row.GROUP_CODE, groupName: row.GROUP_NAME,
       description: row.DESCRIPTION || ''
     });
     setOpen(true);
@@ -82,32 +71,18 @@ const GroupCodePage = () => {
     if (window.confirm(t('common.confirm_delete'))) {
       try {
         await axios.delete(`/api/system/groupcodes/${formData.groupCode}`);
-        alert(t('common.deleted'));
-        setOpen(false);
-        fetchGroupCodes();
-      } catch (err) {
-        alert(t('common.delete_failed'));
-      }
+        alert(t('common.deleted')); setOpen(false); fetchGroupCodes();
+      } catch (err) { alert(t('common.delete_failed')); }
     }
   };
 
   const handleSave = async () => {
-    if (!formData.groupCode || !formData.groupName) {
-      alert(t('common.fill_required'));
-      return;
-    }
-
+    if (!formData.groupCode || !formData.groupName) return alert(t('common.fill_required'));
     try {
-      if (isEdit) {
-        await axios.put(`/api/system/groupcodes/${formData.groupCode}`, formData); 
-      } else {
-        await axios.post('/api/system/groupcodes', formData); 
-      }
-      setOpen(false);
-      fetchGroupCodes();
-    } catch (err) {
-      alert(t('common.save_failed'));
-    }
+      if (isEdit) await axios.put(`/api/system/groupcodes/${formData.groupCode}`, formData); 
+      else await axios.post('/api/system/groupcodes', formData); 
+      setOpen(false); fetchGroupCodes();
+    } catch (err) { alert(t('common.save_failed')); }
   };
 
   const handleChange = (e) => {
@@ -119,21 +94,13 @@ const GroupCodePage = () => {
     <Box sx={{ p: 2, height: '100vh', display: 'flex', flexDirection: 'column' }}>
       
       <SearchFilterBar 
-        title={t('groupcode.title')}
-        searchQuery={searchText}
-        onSearchChange={handleSearch}
-        onAdd={handleOpenAdd}
-        addBtnText={t('groupcode.register')}
-        searchPlaceholder={t('groupcode.search_placeholder')}
+        title={t('groupcode.title')} searchQuery={searchText} 
+        onSearchChange={handleSearch} onAdd={handleOpenAdd} 
+        addBtnText={t('groupcode.register')} searchPlaceholder={t('groupcode.search_placeholder')}
       />
 
       <Box sx={{ flexGrow: 1, width: '100%', minHeight: 0 }}>
-        <DataTable 
-          columns={columns} 
-          rows={filteredRows} 
-          idField="id"
-          onRowClick={handleRowClick} 
-        />
+        <DataTable columns={columns} rows={filteredRows} onRowClick={handleRowClick} />
       </Box>
 
       <CommonDialog
@@ -144,29 +111,9 @@ const GroupCodePage = () => {
         onSave={handleSave}
         onDelete={handleDelete}
       >
-        <TextField 
-          label={`${t('groupcode.code')} *`}
-          name="groupCode" 
-          value={formData.groupCode} 
-          onChange={handleChange} 
-          fullWidth 
-          disabled={isEdit} 
-          helperText={isEdit ? t('groupcode.cannot_edit_code') : t('groupcode.code_helper')}
-        />
-        <TextField 
-          label={`${t('groupcode.name')} *`}
-          name="groupName" 
-          value={formData.groupName} 
-          onChange={handleChange} 
-          fullWidth 
-        />
-        <TextField 
-          label={t('groupcode.description')}
-          name="description" 
-          value={formData.description} 
-          onChange={handleChange} 
-          fullWidth 
-        />
+        <TextField label={`${t('groupcode.code')} *`} name="groupCode" value={formData.groupCode} onChange={handleChange} fullWidth disabled={isEdit} helperText={isEdit ? t('groupcode.cannot_edit_code') : t('groupcode.code_helper')} />
+        <TextField label={`${t('groupcode.name')} *`} name="groupName" value={formData.groupName} onChange={handleChange} fullWidth />
+        <TextField label={t('groupcode.description')} name="description" value={formData.description} onChange={handleChange} fullWidth />
       </CommonDialog>
       
     </Box>

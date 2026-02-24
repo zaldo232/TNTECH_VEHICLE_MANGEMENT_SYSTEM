@@ -8,14 +8,43 @@ import { useTranslation } from 'react-i18next';
 import SearchFilterBar from '../../components/common/SearchFilterBar';
 import CommonDialog from '../../components/common/CommonDialog';
 
+// 그룹코드 전용 스마트 드롭다운 컴포넌트 (파일 내부에 생성)
+const GroupCodeSelect = ({ value, onChange, disabled }) => {
+  const { t } = useTranslation();
+  const [options, setOptions] = useState([]);
+
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        const res = await axios.get('/api/system/groupcodes');
+        setOptions(res.data);
+      } catch (err) { console.error('Failed to load group codes', err); }
+    };
+    fetchOptions();
+  }, []);
+
+  return (
+    <FormControl fullWidth required disabled={disabled}>
+      <InputLabel>{t('code.group')}</InputLabel>
+      <Select name="groupCode" value={value || ''} label={t('code.group')} onChange={onChange}>
+        {(!value || options.length === 0) && <MenuItem value="" sx={{ display: 'none' }}></MenuItem>}
+        {options.map((group) => (
+          <MenuItem key={group.GROUP_CODE} value={group.GROUP_CODE}>
+            {group.GROUP_NAME} ({group.GROUP_CODE})
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  );
+};
+
+
 const SystemCodePage = () => {
   const { t } = useTranslation();
 
   const [rows, setRows] = useState([]);                 
   const [filteredRows, setFilteredRows] = useState([]); 
-  const [searchText, setSearchText] = useState('');     
-  
-  const [groupCodeList, setGroupCodeList] = useState([]); 
+  const [searchText, setSearchText] = useState('');
 
   const [open, setOpen] = useState(false);              
   const [isEdit, setIsEdit] = useState(false);          
@@ -39,9 +68,6 @@ const SystemCodePage = () => {
       }));
       setRows(rowsWithId);
       setFilteredRows(rowsWithId);
-
-      const resGroups = await axios.get('/api/system/groupcodes');
-      setGroupCodeList(resGroups.data);
     } catch (err) {
       console.error('Fetch error:', err);
     }
@@ -125,7 +151,6 @@ const SystemCodePage = () => {
         />
       </Box>
 
-      {/* 팝업 껍데기 제거: 알맹이만 남았습니다! */}
       <CommonDialog
         open={open}
         onClose={() => setOpen(false)}
@@ -134,16 +159,9 @@ const SystemCodePage = () => {
         onSave={handleSave}
         onDelete={handleDelete}
       >
-        <FormControl fullWidth required disabled={isEdit}>
-          <InputLabel>{t('code.group')}</InputLabel>
-          <Select name="groupCode" value={formData.groupCode} label={t('code.group')} onChange={handleChange}>
-            {groupCodeList.map((group) => (
-              <MenuItem key={group.GROUP_CODE} value={group.GROUP_CODE}>
-                {group.GROUP_NAME} ({group.GROUP_CODE})
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        {/* 그룹코드 전용 스마트 드롭다운 적용! */}
+        <GroupCodeSelect value={formData.groupCode} onChange={handleChange} disabled={isEdit} />
+
         <TextField label={t('code.content')} name="contentCode" value={formData.contentCode} onChange={handleChange} fullWidth required disabled={isEdit} helperText={isEdit ? t('code.cannot_edit') : ""} />
         <TextField label={t('code.name')} name="codeName" value={formData.codeName} onChange={handleChange} fullWidth required />
         <TextField label={t('code.sort')} name="sortOrder" type="number" value={formData.sortOrder} onChange={handleChange} fullWidth />
