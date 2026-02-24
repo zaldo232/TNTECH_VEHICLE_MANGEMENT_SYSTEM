@@ -8,10 +8,10 @@ import interactionPlugin from '@fullcalendar/interaction';
 import axios from 'axios';
 
 import useStore from '../../context/store';
-import { useCalendar } from '../../hooks/useCalendar'; // ✅ 달력 로직 훅
-import CalendarHeader from '../../components/common/CalendarHeader'; // ✅ 공통 헤더
-import MobileCalendarList from '../../components/common/MobileCalendarList'; // ✅ 공통 모바일 리스트
-import RightDrawer from '../../components/common/RightDrawer'; // ✅ 공통 우측 팝업
+import { useCalendar } from '../../hooks/useCalendar'; // 달력 로직 훅
+import CalendarHeader from '../../components/common/CalendarHeader'; // 공통 헤더
+import MobileCalendarList from '../../components/common/MobileCalendarList'; // 공통 모바일 리스트
+import RightDrawer from '../../components/common/RightDrawer'; // 공통 우측 팝업
 import '../Dispatch/CalendarCustom.css'; 
 
 const MainPage = () => {
@@ -26,7 +26,7 @@ const MainPage = () => {
 
   const periodMap = { 'ALL': t('dispatch.all_day'), 'AM': t('dispatch.am'), 'PM': t('dispatch.pm') };
 
-  // ✅ 지저분했던 달력 상태와 함수들을 Hook 한 줄로 처리
+  // 지저분했던 달력 상태와 함수들을 Hook 한 줄로 처리
   const { 
     currentDate, calendarRef, todayRef, scrollContainerRef, 
     handleDatesSet, handlePrev, handleNext, handleToday, handleJumpDate 

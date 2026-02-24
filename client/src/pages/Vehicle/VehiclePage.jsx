@@ -1,30 +1,20 @@
-import React, { useEffect, useState } from 'react';
-import DataTable from '../../components/common/DataTable';
+import React, { useState } from 'react';
 import axios from 'axios';
-import { 
-  Box, Button, TextField, Dialog, DialogTitle, DialogContent, 
-  DialogActions, Stack, InputAdornment, FormControlLabel, Checkbox, Typography, Divider, useMediaQuery 
-} from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { Box, TextField, FormControlLabel, Checkbox, Typography, Divider } from '@mui/material';
 import SettingsIcon from '@mui/icons-material/Settings';
+import { Button, Dialog, DialogTitle, DialogContent, DialogActions, Stack, InputAdornment } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 
-// 공통 컴포넌트 임포트
+import DataTable from '../../components/common/DataTable';
 import SearchFilterBar from '../../components/common/SearchFilterBar';
 import CommonDialog from '../../components/common/CommonDialog';
 import CommonCodeSelect from '../../components/common/CommonCodeSelect';
+import { useDataTable } from '../../hooks/useDataTable';
 
 const VehiclePage = () => {
   const { t } = useTranslation();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-
-  const [vehicles, setVehicles] = useState([]);
-  const [filteredVehicles, setFilteredVehicles] = useState([]);
-  const [searchText, setSearchText] = useState('');
   const [open, setOpen] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
-  
   const [formData, setFormData] = useState({ 
     licensePlate: '', vehicleName: '', mileage: 0, status: 'AVAILABLE', isManaged: 'Y' 
   });
@@ -32,7 +22,13 @@ const VehiclePage = () => {
   const [managementSettingsOpen, setManagementSettingsOpen] = useState(false);
   const [managementSettings, setManagementSettings] = useState([]);
 
-  // 컬럼 정의 (기존 경고/주의 로직 보존)
+  // ✅ 훅 호출 (idField는 반드시 대문자 LICENSE_PLATE 확인)
+  const { filteredRows, searchText, handleSearch, fetchData } = useDataTable(
+    '/api/vehicles', 
+    ['LICENSE_PLATE', 'VEHICLE_NAME'], 
+    'LICENSE_PLATE'
+  );
+
   const columns = [
     { field: 'LICENSE_PLATE', headerName: t('vehicle.plate'), width: 130 },
     { field: 'VEHICLE_NAME', headerName: t('vehicle.model'), width: 150 },
@@ -42,18 +38,17 @@ const VehiclePage = () => {
       width: 400, 
       renderCell: (params) => {
         const row = params.row;
+        // ✅ 데이터가 없을 때를 대비해 옵셔널 체이닝 추가
         const alerts = row.MAINTENANCE_ALERTS ? row.MAINTENANCE_ALERTS.split(', ') : [];
-
         return (
           <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
             <Typography component="span" sx={{ color: 'text.primary', fontWeight: 'bold' }}>
-              {params.value?.toLocaleString()} km
+              {params.value?.toLocaleString() || 0} km
             </Typography>
             {alerts.map((alert, index) => {
               let alertColor = 'text.secondary';
-              if (alert.includes(t('vehicle.warning')) || alert.includes('경고')) alertColor = 'error.main';
-              else if (alert.includes(t('vehicle.caution')) || alert.includes('주의')) alertColor = 'warning.main';
-
+              if (alert.includes('경고') || alert.includes('Warning')) alertColor = 'error.main';
+              else if (alert.includes('주의') || alert.includes('Caution')) alertColor = 'warning.main';
               return (
                 <Typography key={index} component="span" sx={{ fontSize: '0.85rem', color: alertColor, fontWeight: 'bold' }}>
                   {alert}
@@ -77,44 +72,31 @@ const VehiclePage = () => {
     }
   ];
 
-  const fetchData = async () => {
-    try {
-      const res = await axios.get('/api/vehicles');
-      const rows = res.data.map(v => ({ ...v, id: v.LICENSE_PLATE }));
-      setVehicles(rows);
-      setFilteredVehicles(rows);
-      // 공통코드 수동 fetch 로직 삭제됨
-    } catch (err) { console.error(t('vehicle.data_load_fail'), err); }
-  };
-
-  useEffect(() => { fetchData(); }, []);
-
-  const handleSearch = (e) => {
-    const value = e.target.value;
-    setSearchText(value);
-    const filtered = vehicles.filter(v => 
-      v.LICENSE_PLATE.toLowerCase().includes(value.toLowerCase()) || 
-      v.VEHICLE_NAME.toLowerCase().includes(value.toLowerCase())
-    );
-    setFilteredVehicles(filtered);
-  };
-
-  const handleOpenAdd = () => {
-    setIsEdit(false); 
-    setFormData({ licensePlate: '', vehicleName: '', mileage: 0, status: 'AVAILABLE', isManaged: 'Y' }); 
-    setOpen(true);
-  };
-
   const handleRowClick = (row) => {
     setIsEdit(true);
     setFormData({ 
-      licensePlate: row.LICENSE_PLATE, 
-      vehicleName: row.VEHICLE_NAME, 
-      mileage: row.MILEAGE, 
-      status: row.VEHICLES_STATUS,
-      isManaged: row.IS_MANAGED || 'Y'
+      licensePlate: row.LICENSE_PLATE, vehicleName: row.VEHICLE_NAME, 
+      mileage: row.MILEAGE, status: row.VEHICLES_STATUS, isManaged: row.IS_MANAGED || 'Y'
     });
     setOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!formData.licensePlate || !formData.vehicleName) return alert(t('common.fill_required'));
+    try {
+      await axios.post('/api/vehicles', formData);
+      setOpen(false);
+      fetchData(); // 훅에서 받은 데이터 갱신 함수 호출
+    } catch (err) { alert(t('common.save_failed')); }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm(t('common.confirm_delete'))) return;
+    try {
+      await axios.delete(`/api/vehicles?licensePlate=${formData.licensePlate}`);
+      setOpen(false);
+      fetchData();
+    } catch (err) { alert(t('common.delete_failed')); }
   };
 
   const handleOpenManagementSettings = async () => {
@@ -128,58 +110,30 @@ const VehiclePage = () => {
   const handleSaveManagementSettings = async () => {
     try {
       await axios.post('/api/vehicles/management-settings', { licensePlate: formData.licensePlate, settings: managementSettings });
-      alert(t('vehicle.save_settings_success'));
-      setManagementSettingsOpen(false); fetchData(); 
-    } catch (err) { alert(t('common.save_failed')); }
-  };
-
-  const handleDelete = async () => {
-    if (window.confirm(t('common.confirm_delete'))) {
-      try {
-        await axios.delete(`/api/vehicles?licensePlate=${formData.licensePlate}`);
-        alert(t('common.deleted')); setOpen(false); fetchData();
-      } catch (err) { alert(t('common.delete_failed')); }
-    }
-  };
-
-  const handleSave = async () => {
-    if (!formData.licensePlate || !formData.vehicleName) return alert(t('common.fill_required'));
-    try {
-      await axios.post('/api/vehicles', formData);
-      alert(isEdit ? t('common.save_edit') : t('common.register'));
-      setOpen(false); fetchData();
+      setManagementSettingsOpen(false);
+      fetchData(); 
     } catch (err) { alert(t('common.save_failed')); }
   };
 
   return (
     <Box sx={{ p: 2, height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <SearchFilterBar 
-        title={t('menu.vehicle_mgmt')} searchQuery={searchText} 
-        onSearchChange={handleSearch} onAdd={handleOpenAdd} 
-        addBtnText={t('vehicle.register')} searchPlaceholder={t('vehicle.search_placeholder')}
+        title={t('menu.vehicle_mgmt')} searchQuery={searchText} onSearchChange={handleSearch} 
+        onAdd={() => { setIsEdit(false); setFormData({ licensePlate: '', vehicleName: '', mileage: 0, status: 'AVAILABLE', isManaged: 'Y' }); setOpen(true); }} 
       />
 
       <Box sx={{ flexGrow: 1, width: '100%', minHeight: 0 }}>
-        <DataTable columns={columns} rows={filteredVehicles} onRowClick={handleRowClick} />
+        <DataTable columns={columns} rows={filteredRows} onRowClick={handleRowClick} />
       </Box>
 
-      {/* 차량 등록/수정 다이얼로그 */}
       <CommonDialog
-        open={open} onClose={() => setOpen(false)} title={isEdit ? t('vehicle.edit') : t('vehicle.register')}
-        isEdit={isEdit} onSave={handleSave} onDelete={handleDelete}
+        open={open} onClose={() => setOpen(false)} isEdit={isEdit} onSave={handleSave} onDelete={handleDelete}
+        title={isEdit ? t('vehicle.edit') : t('vehicle.register')}
       >
         <TextField label={t('vehicle.plate')} value={formData.licensePlate} disabled={isEdit} fullWidth onChange={(e) => setFormData({...formData, licensePlate: e.target.value})} />
         <TextField label={t('vehicle.model')} value={formData.vehicleName} fullWidth onChange={(e) => setFormData({...formData, vehicleName: e.target.value})} />
         <TextField label={t('vehicle.mileage')} type="number" value={formData.mileage} fullWidth onChange={(e) => setFormData({...formData, mileage: e.target.value})} />
-        
-        {/* 차량상태 스마트 드롭다운 적용! */}
-        <CommonCodeSelect 
-          groupCode="차량상태" 
-          label={t('vehicle.status')} 
-          value={formData.status} 
-          onChange={(e) => setFormData({...formData, status: e.target.value})} 
-        />
-        
+        <CommonCodeSelect groupCode="차량상태" label={t('vehicle.status')} value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})} />
         <FormControlLabel control={<Checkbox checked={formData.isManaged === 'Y'} onChange={(e) => setFormData({ ...formData, isManaged: e.target.checked ? 'Y' : 'N' })} />} label={t('vehicle.managed_checkbox')} />
         
         {isEdit && (
@@ -192,7 +146,7 @@ const VehiclePage = () => {
         )}
       </CommonDialog>
 
-      {/* 점검 주기 설정 다이얼로그 (보존) */}
+      {/* 점검 주기 설정 (원본 유지) */}
       <Dialog open={managementSettingsOpen} onClose={() => setManagementSettingsOpen(false)}>
         <DialogTitle sx={{ bgcolor: 'secondary.main', color: 'white', fontWeight: 'bold' }}>
           {t('vehicle.maintenance_settings_title')} ({formData.licensePlate})
@@ -202,7 +156,11 @@ const VehiclePage = () => {
             {managementSettings.map((item, index) => (
               <Box key={item.MANAGEMENT_TYPE} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Typography variant="subtitle1" fontWeight="medium" sx={{ minWidth: 120 }}>{item.CODE_NAME}</Typography>
-                <TextField size="small" type="number" value={item.INTERVAL_KM} onChange={(e) => { const next = [...managementSettings]; next[index].INTERVAL_KM = e.target.value; setManagementSettings(next); }} InputProps={{ endAdornment: <InputAdornment position="end">km</InputAdornment> }} sx={{ width: 180 }} />
+                <TextField size="small" type="number" value={item.INTERVAL_KM} onChange={(e) => { 
+                  const next = [...managementSettings]; 
+                  next[index].INTERVAL_KM = e.target.value; 
+                  setManagementSettings(next); 
+                }} InputProps={{ endAdornment: <InputAdornment position="end">km</InputAdornment> }} sx={{ width: 180 }} />
               </Box>
             ))}
           </Stack>

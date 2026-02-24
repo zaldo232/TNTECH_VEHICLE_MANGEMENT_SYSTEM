@@ -45,16 +45,13 @@ const SearchFilterBar = ({
         {title}
       </Typography>
 
-      {/* 2. 우측 컨트롤 영역 (필터, 검색창, 등록 버튼) */}
+      {/* 2. 우측 컨트롤 영역 (순서 변경: 검색창 -> 필터 -> 등록 버튼) */}
       <Stack 
         direction={{ xs: 'column', sm: 'row' }} 
         spacing={1} 
         sx={{ alignItems: 'stretch' }}
       >
-        {/* 추가 필터 요소 (ex: Select 박스) */}
-        {children}
-
-        {/* 검색 텍스트 필드 (onSearchChange가 넘어왔을 때만 렌더링) */}
+        {/* ✅ 1순위: 검색 텍스트 필드 */}
         {onSearchChange && (
           <TextField 
             size="small" 
@@ -71,7 +68,10 @@ const SearchFilterBar = ({
           />
         )}
 
-        {/* 신규 등록 버튼 (onAdd가 넘어왔을 때만 렌더링) */}
+        {/* ✅ 2순위: 추가 필터 요소 (ex: HistoryPage에서 넘어온 콤보박스) */}
+        {children}
+
+        {/* ✅ 3순위: 신규 등록 버튼 (맨 오른쪽 고정) */}
         {onAdd && (
           <Button 
             variant="contained" 

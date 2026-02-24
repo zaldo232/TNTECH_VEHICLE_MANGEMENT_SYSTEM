@@ -162,7 +162,8 @@
     "filter_completed": "대여 완료",
     "filter_returned": "반납 기록",
     "filter_canceled": "취소 기록",
-    "load_fail": "이력 로드 실패"
+    "load_fail": "이력 로드 실패",
+    "search_placeholder":"차량, 번호, 사용자 검색"
   },
   "log": {
     "title": "운행 기록부",

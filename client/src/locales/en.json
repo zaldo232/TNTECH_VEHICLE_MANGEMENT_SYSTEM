@@ -162,7 +162,8 @@
     "filter_completed": "Completed",
     "filter_returned": "Returned",
     "filter_canceled": "Canceled",
-    "load_fail": "Failed to load history"
+    "load_fail": "Failed to load history",
+    "search_placeholder":"Search for vehicles, vehicle numbers, and users"
   },
   "log": {
     "title": "Business Vehicle Driving Log",

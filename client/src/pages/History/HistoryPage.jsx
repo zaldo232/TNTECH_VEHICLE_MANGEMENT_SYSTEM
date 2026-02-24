@@ -1,57 +1,31 @@
-import React, { useState, useEffect } from 'react';
-import DataTable from '../../components/common/DataTable'; 
-import axios from 'axios';
-import { Box, Typography, Chip, FormControl, Select, MenuItem, useMediaQuery } from '@mui/material';
-import { useTheme } from '@mui/material/styles'; 
+import React, { useState } from 'react';
+import { Box, Typography, FormControl, Select, MenuItem } from '@mui/material';
 import { useTranslation } from 'react-i18next';
-import useStore from '../../context/store';
 
-// 공통 상단바 컴포넌트 임포트
+// 공통 컴포넌트 및 훅 임포트
+import DataTable from '../../components/common/DataTable'; 
 import SearchFilterBar from '../../components/common/SearchFilterBar';
+import StatusChip from '../../components/common/StatusChip';
+import { useDataTable } from '../../hooks/useDataTable';
 
 const HistoryPage = () => {
   const { t, i18n } = useTranslation();
-  const { user } = useStore();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm')); 
-
-  const [historyList, setHistoryList] = useState([]);
   const [filter, setFilter] = useState('ALL'); 
+
+  // 데이터 로직: filter가 바뀔 때마다 자동으로 서버에서 다시 가져옵니다.
+  // 검색 대상 필드에 번호판, 모델명, 사용자명 등을 모두 지정했습니다.
+  const { filteredRows, searchText, handleSearch } = useDataTable(
+    `/api/history/list?filterType=${filter}`, 
+    ['VEHICLE_NAME', 'LICENSE_PLATE', 'MEMBER_NAME', 'REGION', 'VISIT_PLACE'],
+    'DISPATCH_ID'
+  );
 
   const columns = [
     { 
       field: 'DISPATCH_STATUS', 
       headerName: t('vehicle.status'), 
       width: 110,
-      renderCell: (params) => {
-        const status = params?.value || '';
-        let label = '';
-        let chipColor = 'default';
-
-        switch (status) {
-          case 'RESERVED':
-            label = t('history.filter_reserved');
-            chipColor = 'primary';
-            break;
-          case 'COMPLETED':
-            label = t('history.filter_completed');
-            chipColor = 'secondary';
-            break;
-          case 'RETURNED':
-            label = t('history.filter_returned');
-            chipColor = 'success';
-            break;
-          case 'CANCELED':
-            label = t('history.filter_canceled');
-            chipColor = 'error';
-            break;
-          default:
-            label = status;
-            chipColor = 'default';
-        }
-
-        return <Chip label={label} color={chipColor} variant="outlined" size="small" sx={{ fontWeight: 'bold' }} />;
-      }
+      renderCell: (params) => <StatusChip status={params.value} />
     },
     { field: 'VEHICLE_NAME', headerName: t('vehicle.model'), width: 120 },
     { field: 'LICENSE_PLATE', headerName: t('vehicle.plate'), width: 120 },
@@ -60,7 +34,7 @@ const HistoryPage = () => {
     { 
       field: 'RENTAL_DATE', 
       headerName: t('dispatch.rental_period'), 
-      width: 180,
+      width: 150,
       renderCell: (params) => (
         <Typography variant="body2">
           {params.value ? new Date(params.value).toLocaleString(i18n.language === 'ko' ? 'ko-KR' : 'en-US').slice(0, 16) : '-'}
@@ -70,7 +44,7 @@ const HistoryPage = () => {
     { 
       field: 'RETURN_DATE', 
       headerName: t('dispatch.return_datetime'), 
-      width: 180,
+      width: 150,
       renderCell: (params) => (
         <Typography variant="body2">
           {params.value ? new Date(params.value).toLocaleString(i18n.language === 'ko' ? 'ko-KR' : 'en-US').slice(0, 16) : '-'}
@@ -105,26 +79,20 @@ const HistoryPage = () => {
     },
   ];
 
-  const fetchHistory = async () => {
-    try {
-      const res = await axios.get('/api/history/list', { params: { filterType: filter } });
-      setHistoryList(res.data.map(item => ({ ...item, id: item.DISPATCH_ID })));
-    } catch (err) { console.error(t('history.load_fail'), err); }
-  };
-
-  useEffect(() => { if (user) fetchHistory(); }, [filter, user]);
-
   return (
-    // 표 높이 유지: height 85vh와 flex 설정 유지 (모바일 스크롤 여유 pb: 10 보존)
     <Box sx={{ p: 2, pb: { xs: 10, md: 2 }, height: '100vh', display: 'flex', flexDirection: 'column' }}>
       
-      {/* SearchFilterBar 적용 (검색/버튼 없이 콤보박스만 자식으로 전달) */}
-      <SearchFilterBar title={t('history.title')}>
+      {/* 상단바: 검색 기능과 필터 셀렉트 박스 통합 */}
+      <SearchFilterBar 
+        title={t('history.title')}
+        searchQuery={searchText}
+        onSearchChange={handleSearch}
+        searchPlaceholder={t('history.search_placeholder') || "차량, 번호, 사용자 검색..."}
+      >
         <FormControl size="small" sx={{ minWidth: 120 }}>
           <Select 
             value={filter} 
             onChange={(e) => setFilter(e.target.value)}
-            fullWidth={isMobile} 
             sx={{ fontWeight: 'bold', bgcolor: 'background.paper' }}
           >
             <MenuItem value="ALL">{t('history.filter_all')}</MenuItem>
@@ -136,9 +104,8 @@ const HistoryPage = () => {
         </FormControl>
       </SearchFilterBar>
 
-      {/* 표 영역 꽉 차게 렌더링 */}
       <Box sx={{ flexGrow: 1, width: '100%', minHeight: 0 }}>
-        <DataTable columns={columns} rows={historyList} />
+        <DataTable columns={columns} rows={filteredRows} />
       </Box>
     </Box>
   );
