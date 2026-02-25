@@ -1,6 +1,14 @@
+/**
+ * @file        systemController.js
+ * @description 시스템 전역에서 사용하는 공통 코드 및 그룹 코드의 CRUD 로직 관리
+ */
+
 const { poolPromise, sql } = require('../config/db');
 
-// 공통코드 전체 조회
+/**
+ * [공통코드 전체 조회]
+ * 시스템에 등록된 모든 상세 공통 코드 목록 반환
+ */
 exports.getAllCodes = async (req, res) => {
     try {
         const pool = await poolPromise;
@@ -11,7 +19,10 @@ exports.getAllCodes = async (req, res) => {
     }
 };
 
-// 특정 그룹 코드 조회 (콤보박스용)
+/**
+ * [특정 그룹 코드 조회]
+ * 특정 그룹(부서, 직급 등)에 속한 코드 리스트를 조회하여 UI 컴포넌트(Select 등)에 제공
+ */
 exports.getCodesByGroup = async (req, res) => {
     try {
         const pool = await poolPromise;
@@ -24,7 +35,10 @@ exports.getCodesByGroup = async (req, res) => {
     }
 };
 
-// 공통코드 등록
+/**
+ * [공통코드 등록]
+ * 신규 상세 코드 정보를 입력받아 저장
+ */
 exports.createCode = async (req, res) => {
     const { groupCode, contentCode, codeName, sortOrder } = req.body;
     try {
@@ -42,7 +56,10 @@ exports.createCode = async (req, res) => {
     }
 };
 
-// 공통코드 수정
+/**
+ * [공통코드 수정]
+ * 코드 명칭 및 정렬 순서 등 상세 정보 업데이트
+ */
 exports.updateCode = async (req, res) => {
     const { groupCode, contentCode, codeName, sortOrder } = req.body;
     try {
@@ -60,7 +77,10 @@ exports.updateCode = async (req, res) => {
     }
 };
 
-// 공통코드 삭제
+/**
+ * [공통코드 삭제]
+ * 그룹 및 콘텐츠 코드를 기준으로 특정 코드 삭제
+ */
 exports.deleteCode = async (req, res) => {
     const { group, content } = req.query;
     try {
@@ -76,7 +96,10 @@ exports.deleteCode = async (req, res) => {
     }
 };
 
-// 그룹코드 전체 조회
+/**
+ * [그룹코드 전체 조회]
+ * 공통 코드의 상위 분류인 그룹 코드 전체 목록 반환
+ */
 exports.getAllGroupCodes = async (req, res) => {
     try {
         const pool = await poolPromise;
@@ -87,7 +110,10 @@ exports.getAllGroupCodes = async (req, res) => {
     }
 };
 
-// 그룹코드 등록
+/**
+ * [그룹코드 등록]
+ * 신규 코드 카테고리(그룹) 생성 및 중복 여부 확인
+ */
 exports.createGroupCode = async (req, res) => {
     const { groupCode, groupName, description } = req.body;
     try {
@@ -98,7 +124,7 @@ exports.createGroupCode = async (req, res) => {
             .input('DESCRIPTION', sql.NVarChar, description || '')
             .execute('SP_REGISTER_GROUP_CODE');
         
-        // 프로시저에서 SUCCESS가 0으로 오면 중복 등 에러 처리 가능
+        // 비즈니스 로직 성공 여부 확인
         if (result.recordset[0].SUCCESS === 0) {
             return res.status(400).json({ success: false, message: result.recordset[0].MSG });
         }
@@ -109,10 +135,13 @@ exports.createGroupCode = async (req, res) => {
     }
 };
 
-// 그룹코드 수정
+/**
+ * [그룹코드 수정]
+ * URL 파라미터로 전달된 그룹 코드의 명칭 및 설명 수정
+ */
 exports.updateGroupCode = async (req, res) => {
     const { groupName, description } = req.body;
-    const groupCode = req.params.groupCode; // URL 파라미터에서 추출
+    const groupCode = req.params.groupCode; 
     
     try {
         const pool = await poolPromise;
@@ -128,9 +157,12 @@ exports.updateGroupCode = async (req, res) => {
     }
 };
 
-// 그룹코드 삭제
+/**
+ * [그룹코드 삭제]
+ * 특정 그룹 코드를 삭제하여 하위 코드 분류 해제
+ */
 exports.deleteGroupCode = async (req, res) => {
-    const groupCode = req.params.groupCode; // URL 파라미터에서 추출
+    const groupCode = req.params.groupCode; 
     
     try {
         const pool = await poolPromise;

@@ -1,5 +1,14 @@
+/**
+ * @file        dispatchController.js
+ * @description 차량 배차 신청, 승인, 반납 및 예약 현황 관리 로직
+ */
+
 const { poolPromise, sql } = require('../config/db');
 
+/**
+ * [배차 가능 여부 조회]
+ * 특정 월의 일자별 차량 가용 상태(오전/오후)를 조회하여 맵 형태로 반환
+ */
 exports.getAvailability = async (req, res) => {
     try {
         const { month } = req.query;
@@ -8,6 +17,7 @@ exports.getAvailability = async (req, res) => {
             .input('SEARCH_MONTH', sql.NVarChar, month)
             .execute('SP_GET_DISPATCH_AVAILABILITY');
 
+        // 날짜별로 가용 차량 정보를 그룹화 (Map 변환)
         const availabilityMap = {};
         result.recordset.forEach(row => {
             if (!availabilityMap[row.RENTAL_DATE]) {
@@ -24,26 +34,26 @@ exports.getAvailability = async (req, res) => {
     } catch (err) { res.status(500).send(err.message); }
 };
 
-// 배차 신청 등록
+/**
+ * [배차 신청 등록]
+ * 사용자 세션 정보를 바탕으로 신규 배차 예약 데이터를 생성
+ */
 exports.registerDispatch = async (req, res) => {
-    // 세션 체크 (로그인 안 했으면 튕겨내기)
+    // 세션 유효성 검사
     if (!req.session.user) {
         return res.status(401).json({ success: false, message: "로그인이 필요합니다." });
     }
 
     try {
-        // 프론트엔드 데이터가 아닌 '세션'에서 ID 추출
-        const memberId = req.session.user.id; 
-
+        const memberId = req.session.user.id; // 세션의 사용자 고유 ID 사용
         const { 
             licensePlate, rentalDate, period, 
             bizType, region, visitPlace 
         } = req.body;
 
         const pool = await poolPromise;
-
         const result = await pool.request()
-            .input('MEMBER_ID', sql.NVarChar, memberId) // 세션값 사용
+            .input('MEMBER_ID', sql.NVarChar, memberId)
             .input('LICENSE_PLATE', sql.NVarChar, licensePlate)
             .input('RENTAL_DATE', sql.DateTime, rentalDate)
             .input('RENTAL_PERIOD', sql.NVarChar, period)
@@ -66,24 +76,23 @@ exports.registerDispatch = async (req, res) => {
     }
 };
 
-// 배차 현황 조회
+/**
+ * [사용자의 배차 현황 조회]
+ * 세션에 로그인된 사용자의 예약/운행/반납 상태 데이터를 조회
+ */
 exports.getDispatchStatus = async (req, res) => {
-    // 세션 체크
     if (!req.session.user) {
         return res.status(401).json({ success: false, message: "로그인이 필요합니다." });
     }
 
     try {
-        const { status, month } = req.query; // memberId는 받지 않음
-        
-        // 본인 확인용 ID는 세션에서 가져옴
+        const { status, month } = req.query;
         const memberId = req.session.user.id; 
 
         const pool = await poolPromise;
-        
         const result = await pool.request()
             .input('STATUS', sql.NVarChar, status || 'RESERVED')
-            .input('MEMBER_ID', sql.NVarChar, memberId) // 세션값으로 강제 필터링
+            .input('MEMBER_ID', sql.NVarChar, memberId) // 타인 정보 조회 방지
             .input('MONTH', sql.NVarChar, month || null)
             .execute('SP_GET_DISPATCH_STATUS');
 
@@ -94,8 +103,11 @@ exports.getDispatchStatus = async (req, res) => {
     }
 };
 
+/**
+ * [차량 반납 처리]
+ * 운행 종료 후 주행 거리 및 반납 일시를 기록하여 프로세스 완료
+ */
 exports.processReturn = async (req, res) => {
-    // 반납도 로그인한 사람만 가능하게 처리
     if (!req.session.user) {
         return res.status(401).json({ success: false, message: "로그인이 필요합니다." });
     }
@@ -119,10 +131,13 @@ exports.processReturn = async (req, res) => {
     }
 };
 
-// 대시보드용 
+/**
+ * [대시보드 전체 현황 조회]
+ * 캘린더 화면 표시를 위해 특정 월의 모든 배차 내역을 조회
+ */
 exports.getDashboardDispatch = async (req, res) => {
     try {
-        const { month } = req.query; // '2026-02'
+        const { month } = req.query; 
         const pool = await poolPromise;
         const result = await pool.request()
             .input('TARGET_MONTH', sql.NVarChar, month)
@@ -133,10 +148,13 @@ exports.getDashboardDispatch = async (req, res) => {
     }
 };
 
-// 배차 취소
+/**
+ * [배차 예약 취소]
+ * 등록된 배차 신청을 삭제하거나 취소 상태로 변경
+ */
 exports.cancelDispatch = async (req, res) => {
-    const { id } = req.params; // URL에서 넘어온 DISPATCH_ID
-    const { memberId } = req.body; // 프론트에서 보낸 사용자 ID
+    const { id } = req.params; // 취소 대상 DISPATCH_ID
+    const { memberId } = req.body;
 
     try {
         const pool = await poolPromise;
@@ -147,6 +165,7 @@ exports.cancelDispatch = async (req, res) => {
 
         const row = result.recordset[0];
         
+        // 결과 성공 여부에 따른 응답 분기
         if (row && row.SUCCESS === 1) {
             res.json({ success: true, message: row.MSG });
         } else {

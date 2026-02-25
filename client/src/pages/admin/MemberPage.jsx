@@ -65,7 +65,6 @@ const MemberPage = () => {
         <DataTable columns={columns} rows={filteredRows} onRowClick={handleRowClick} />
       </Box>
 
-      {/* 팝업창 안이 한 줄로 아주 깔끔해졌습니다! */}
       <CommonDialog open={open} onClose={() => setOpen(false)} title={isEdit ? t('member.edit') : t('member.register')} isEdit={isEdit} onSave={handleSave} onDelete={handleDelete}>
         <MemberForm isEdit={isEdit} formData={formData} setFormData={setFormData} t={t} />
       </CommonDialog>

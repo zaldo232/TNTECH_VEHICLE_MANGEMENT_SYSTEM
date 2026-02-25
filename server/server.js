@@ -1,129 +1,67 @@
-/*
-const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-const session = require('express-session');
-require('dotenv').config();
-
-// 새로 만든 커스텀 스토어 불러오기
-const MssqlStore = require('./utils/MssqlStore'); 
-
-// config 대신 poolPromise(연결 풀)만 가져오면 됩니다.
-const { poolPromise } = require('./config/db'); 
-
-const app = express();
-const PORT = process.env.PORT || 5000;
-
-// CORS 설정
-app.use(cors({
-  origin: 'http://localhost:5173', 
-  credentials: true, 
-}));
-
-app.use(bodyParser.json());
-app.use(express.urlencoded({ extended: true }));
-
-// 세션 미들웨어 설정
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'tntech_secret_key_1234', // .env 값 사용 권장
-  resave: false,
-  saveUninitialized: false,
-  store: new MssqlStore({
-    poolPromise: poolPromise, // [핵심] DB 연결 풀을 그대로 전달
-    table: 'TB_SESSIONS',     // DB에 만들어둔 테이블 이름
-  }),
-  cookie: {
-    httpOnly: true, 
-    secure: false, // https 적용 시 true
-    maxAge: 1000 * 60 * 60 * 24 // 24시간 유지
-  }
-}));
-
-// [테스트 API]
-app.get('/api/test', async (req, res) => {
-  try {
-    const pool = await poolPromise;
-    const result = await pool.request().query('SELECT @@VERSION as version');
-    res.json({ success: true, version: result.recordset[0].version });
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
-
-// [라우터 연결]
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/admin/members', require('./routes/members'));
-app.use('/api/vehicles', require('./routes/vehicles'));
-app.use('/api/dispatch', require('./routes/dispatch'));
-app.use('/api/system', require('./routes/system'));
-app.use('/api/history', require('./routes/history'));
-app.use('/api/management', require('./routes/management'));
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
-*/
+/**
+ * @file server.js
+ * @description Express 기반 백엔드 서버의 메인 진입점. 미들웨어 설정 및 라우터 통합 관리.
+ */
 
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const session = require('express-session'); //
-const MSSQLStore = require('connect-mssql-v2'); //
-require('dotenv').config(); //
+const session = require('express-session'); 
+const MSSQLStore = require('connect-mssql-v2'); 
+require('dotenv').config(); 
 
-// 이제 db.js의 dbConfig를 정상적으로 가져옵니다.
+// 데이터베이스 설정 및 커넥션 풀 로드
 const { poolPromise, dbConfig } = require('./config/db'); 
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// CORS 설정
+/**
+ * CORS(Cross-Origin Resource Sharing) 설정
+ * 프론트엔드(Vite) 개발 서버의 접근 허용 및 쿠키 공유 설정
+ */
 app.use(cors({
   origin: 'http://localhost:5173', 
   credentials: true, 
-})); //
+})); 
 
+// 요청 본문 파싱 미들웨어 (JSON 및 URL-encoded)
 app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 세션 미들웨어 설정
+/**
+ * 세션 미들웨어 설정
+ * DB(MSSQL) 기반의 세션 저장소(TB_SESSIONS) 사용 및 쿠키 보안 설정
+ */
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'tntech_secret_key_1234',
-  resave: false,
-  saveUninitialized: false,
-  store: new MSSQLStore(dbConfig, { //
-    table: 'TB_SESSIONS',
-    ttl: 60 * 60 * 24,        // 1일 유지
-    autoRemoveInterval: 15    // 15분마다 청소
+  secret: process.env.SESSION_SECRET,                       // 세션 암호화 키
+  resave: false,                                            // 변경 사항 없는 세션의 재저장 방지
+  saveUninitialized: false,                                 // 초기화되지 않은 세션의 저장 방지
+  store: new MSSQLStore(dbConfig, { 
+    table: 'TB_SESSIONS',                                   // 세션 정보를 저장할 테이블명
+    ttl: 60 * 60 * 24,                                      // 세션 유지 시간 (1일)
+    autoRemoveInterval: 15                                  // 만료된 세션 삭제 주기 (15분)
   }),
   cookie: {
-    httpOnly: true,
-    secure: false, 
-    maxAge: 1000 * 60 * 60 * 24 
+    httpOnly: true,                                         // 클라이언트 스크립트의 쿠키 접근 차단
+    secure: false,                                          // HTTPS 미사용 환경(로컬) 대응
+    maxAge: 1000 * 60 * 60 * 24                             // 쿠키 만료 시간 (24시간)
   }
 }));
 
-// [테스트 API]
-app.get('/api/test', async (req, res) => {
-  try {
-    const pool = await poolPromise;
-    const result = await pool.request().query('SELECT @@VERSION as version');
-    res.json({ success: true, version: result.recordset[0].version });
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
+/**
+ * [API 라우터 연결]
+ * 기능 도메인별로 분리된 라우터 모듈 등록
+ */
+app.use('/api/auth', require('./routes/auth'));             // 인증 및 세션 체크
+app.use('/api/admin/members', require('./routes/members')); // 관리자 - 사원 관리
+app.use('/api/vehicles', require('./routes/vehicles'));     // 차량 기본 정보 및 관리
+app.use('/api/dispatch', require('./routes/dispatch'));     // 배차 신청, 승인 및 상태
+app.use('/api/system', require('./routes/system'));         // 공통 코드 및 시스템 설정
+app.use('/api/history', require('./routes/history'));       // 운행 이력 및 대시보드 데이터
+app.use('/api/management', require('./routes/management')); // 차량 정기 점검 및 유지보수
 
-// [라우터 연결]
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/admin/members', require('./routes/members'));
-app.use('/api/vehicles', require('./routes/vehicles'));
-app.use('/api/dispatch', require('./routes/dispatch'));
-app.use('/api/system', require('./routes/system'));
-app.use('/api/history', require('./routes/history'));
-app.use('/api/management', require('./routes/management'));
-
+// 서버 포트 리스닝 시작
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
