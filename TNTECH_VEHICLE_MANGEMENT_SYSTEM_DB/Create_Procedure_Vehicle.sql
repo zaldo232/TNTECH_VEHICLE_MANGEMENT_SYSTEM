@@ -1,6 +1,15 @@
+/**
+ * @file        Create_Procedure_Vehicle.sql
+ * @description 차량 마스터 정보 관리, 가용 차량 조회 및 정기 점검 알림
+ */
+
 USE TNTECH_VEHICLE_MANGEMENT_SYSTEM
 GO
 
+/**
+ * [전체 차량 및 점검 알림 조회]
+ * 설명: 차량 상태 명칭 치환 및 설정된 점검 주기 대비 현재 주행거리를 비교하여 주의/경고 알림 생성
+ */
 CREATE OR ALTER PROCEDURE SP_GET_ALL_VEHICLES
 AS
 BEGIN
@@ -36,14 +45,14 @@ BEGIN
     OUTER APPLY (
         SELECT 
             CASE 
-                -- [핵심] 사용자가 0km로 설정한 경우 무조건 경고 안 띄움(0)
+                -- 사용자가 0km로 설정한 경우 무조건 경고 안 띄움(0)
                 WHEN ISNULL(MgtBase.INTERVAL_KM, 0) <= 0 THEN 0
                 WHEN (V.MILEAGE - MgtBase.LastM) >= MgtBase.INTERVAL_KM THEN 2
                 WHEN (V.MILEAGE - MgtBase.LastM) >= MgtBase.INTERVAL_KM * 0.9 THEN 1
                 ELSE 0 
             END AS Danger,
             CASE 
-                -- [핵심] 사용자가 0km로 설정한 경우 문구도 아예 생략 (NULL)
+                -- 사용자가 0km로 설정한 경우 문구도 아예 생략 (NULL)
                 WHEN ISNULL(MgtBase.INTERVAL_KM, 0) <= 0 THEN NULL
                 WHEN (V.MILEAGE - MgtBase.LastM) >= MgtBase.INTERVAL_KM THEN '(' + MgtBase.CODE_NAME + '경고)'
                 WHEN (V.MILEAGE - MgtBase.LastM) >= MgtBase.INTERVAL_KM * 0.9 THEN '(' + MgtBase.CODE_NAME + '주의)'
@@ -61,7 +70,15 @@ BEGIN
 END
 GO
 
--- 2. 차량 저장 (점검 관리 여부 파라미터 추가)
+/**
+ * [차량 정보 저장 및 수정]
+ * @param @LICENSE_PLATE   - 차량 번호 (PK)
+ * @param @VEHICLE_NAME    - 차종 명칭
+ * @param @MILEAGE         - 현재 주행거리
+ * @param @VEHICLES_STATUS - 차량 상태 코드
+ * @param @IS_MANAGED      - 점검 관리 대상 여부
+ * 설명: 차량 번호 존재 시 정보 업데이트, 미존재 시 신규 데이터 삽입
+ */
 CREATE OR ALTER PROCEDURE SP_SAVE_VEHICLE
     @LICENSE_PLATE   NVARCHAR(30),
     @VEHICLE_NAME    NVARCHAR(50),
@@ -89,7 +106,10 @@ BEGIN
 END
 GO
 
--- 3. 차량 삭제 (기존 유지)
+/**
+ * [차량 데이터 삭제]
+ * @param @LICENSE_PLATE - 삭제할 차량 번호
+ */
 CREATE OR ALTER PROCEDURE SP_DELETE_VEHICLE
     @LICENSE_PLATE NVARCHAR(30)
 AS
@@ -101,7 +121,12 @@ BEGIN
 END
 GO
 
--- 4. 배차 가능 차량 조회 (기존 유지)
+/**
+ * [배차 가용 차량 필터링 조회]
+ * @param @TARGET_DATE   - 대여 희망 날짜
+ * @param @TARGET_PERIOD - 대여 희망 시간대 (AM/PM/ALL)
+ * 설명: 상태가 'AVAILABLE'이며 해당 시간대에 중복 예약이 없는 차량 목록 반환
+ */
 CREATE OR ALTER PROCEDURE SP_GET_AVAILABLE_VEHICLES
     @TARGET_DATE    DATE,           -- 사용자가 선택한 날짜
     @TARGET_PERIOD  NVARCHAR(20)    -- 사용자가 선택한 교시 (AM, PM, ALL)
@@ -130,7 +155,11 @@ BEGIN
 END
 GO
 
--- 2. [프로시저] 항목별 설정 불러오기
+/**
+ * [차량별 점검 주기 설정 로드]
+ * @param @LICENSE_PLATE - 대상 차량 번호
+ * 설명: 공통 코드 '점검내용'을 기준으로 각 차량에 설정된 정비 주기(km)를 조회
+ */
 CREATE OR ALTER PROCEDURE SP_GET_MANAGEMENT_SETTINGS
     @LICENSE_PLATE NVARCHAR(30)
 AS
@@ -148,7 +177,13 @@ BEGIN
 END
 GO
 
--- 3. [프로시저] 항목별 설정 저장하기
+/**
+ * [차량별 항목 점검 주기 저장]
+ * @param @LICENSE_PLATE   - 차량 번호
+ * @param @MANAGEMENT_TYPE - 점검 항목 코드
+ * @param @INTERVAL_KM     - 설정 주기(km)
+ * 설명: 특정 차량의 정비 항목별 주기 값을 Upsert 방식으로 저장
+ */
 CREATE OR ALTER PROCEDURE SP_SAVE_MANAGEMENT_SETTING
     @LICENSE_PLATE      NVARCHAR(30),
     @MANAGEMENT_TYPE    NVARCHAR(40),

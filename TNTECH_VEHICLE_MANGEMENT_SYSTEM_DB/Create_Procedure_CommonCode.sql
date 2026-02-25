@@ -1,7 +1,16 @@
+/**
+ * @file        Create_Procedure_CommonCode.sql
+ * @description 그룹 코드 및 상세 공통 코드의 CRUD 프로시저 정의
+ */
+
 USE TNTECH_VEHICLE_MANGEMENT_SYSTEM
 GO
 
--- 공통코드 조회
+/**
+ * [특정 그룹의 공통 코드 조회]
+ * @param @GROUP_CODE - 조회할 그룹 식별자
+ * 설명: UI 콤보박스 등에 사용될 특정 그룹의 상세 코드와 명칭 목록 반환
+ */
 CREATE OR ALTER PROCEDURE SP_GET_COMMON_CODE
     @GROUP_CODE NVARCHAR(50)
 AS
@@ -17,7 +26,10 @@ BEGIN
 END
 GO
 
--- 공통코드 전체 조회
+/**
+ * [공통 코드 전체 조회]
+ * 설명: 시스템에 등록된 모든 상세 코드 목록을 그룹 및 정렬 순서대로 반환
+ */
 CREATE OR ALTER PROCEDURE SP_GET_ALL_COMMON_CODES
 AS
 BEGIN
@@ -32,7 +44,14 @@ BEGIN
 END
 GO
 
--- 공통코드 등록
+/**
+ * [신규 공통 코드 등록]
+ * @param @GROUP_CODE   - 대상 그룹 코드
+ * @param @CONTENT_CODE - 신규 상세 코드
+ * @param @CODE_NAME    - 코드 명칭
+ * @param @SORT_ORDER   - 표시 순서
+ * 설명: 그룹 내 동일 코드 존재 여부 확인 후 데이터 삽입
+ */
 CREATE OR ALTER PROCEDURE SP_REGISTER_COMMON_CODE
     @GROUP_CODE     NVARCHAR(50),
     @CONTENT_CODE   NVARCHAR(20),
@@ -42,6 +61,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
+    -- 코드 중복 체크
     IF EXISTS (SELECT 1 FROM TB_COMMONCODE WHERE GROUP_CODE = @GROUP_CODE AND CONTENT_CODE = @CONTENT_CODE)
     BEGIN
         SELECT 0 AS SUCCESS, '이미 존재하는 코드입니다.' AS MSG;
@@ -55,7 +75,10 @@ BEGIN
 END
 Go
 
--- 공통코드 수정
+/**
+ * [공통 코드 정보 수정]
+ * 설명: 그룹 및 상세 코드를 기준으로 명칭과 정렬 순서 업데이트
+ */
 CREATE OR ALTER PROCEDURE SP_UPDATE_COMMON_CODE
     @GROUP_CODE     NVARCHAR(50),
     @CONTENT_CODE   NVARCHAR(20),
@@ -74,7 +97,10 @@ BEGIN
 END
 GO
 
--- 공통코드 삭제
+/**
+ * [공통 코드 삭제]
+ * 설명: 그룹 및 상세 코드를 기준으로 데이터 삭제
+ */
 CREATE OR ALTER PROCEDURE SP_DELETE_COMMON_CODE
     @GROUP_CODE     NVARCHAR(50),
     @CONTENT_CODE   NVARCHAR(20)
@@ -89,10 +115,12 @@ BEGIN
 END
 GO
 
-USE TNTECH_VEHICLE_MANGEMENT_SYSTEM
-GO
+-- --- 그룹 코드 관리 영역 ---
 
--- 1. 그룹코드 전체 조회
+/**
+ * [그룹 코드 전체 조회]
+ * 설명: 상세 코드의 상위 분류인 그룹 코드 전체 목록 반환
+ */
 CREATE OR ALTER PROCEDURE SP_GET_ALL_GROUP_CODES
 AS
 BEGIN
@@ -107,7 +135,13 @@ BEGIN
 END
 GO
 
--- 2. 그룹코드 등록
+/**
+ * [신규 그룹 코드 등록]
+ * @param @GROUP_CODE  - 그룹 식별 코드
+ * @param @GROUP_NAME  - 그룹 명칭
+ * @param @DESCRIPTION - 상세 설명
+ * 설명: 그룹 코드 중복 여부 확인 후 신규 카테고리 생성
+ */
 CREATE OR ALTER PROCEDURE SP_REGISTER_GROUP_CODE
     @GROUP_CODE     NVARCHAR(50),
     @GROUP_NAME     NVARCHAR(100),
@@ -129,7 +163,10 @@ BEGIN
 END
 GO
 
--- 3. 그룹코드 수정
+/**
+ * [그룹 코드 정보 수정]
+ * 설명: 그룹 코드를 식별자로 하여 그룹명 및 설명 업데이트
+ */
 CREATE OR ALTER PROCEDURE SP_UPDATE_GROUP_CODE
     @GROUP_CODE     NVARCHAR(50),
     @GROUP_NAME     NVARCHAR(100),
@@ -147,9 +184,10 @@ BEGIN
 END
 GO
 
--- 4. 그룹코드 삭제
--- (주의: TB_COMMONCODE 테이블 생성 시 ON DELETE CASCADE를 걸어두었다면, 
---  해당 그룹코드를 지울 때 하위 공통코드도 함께 지워집니다.)
+/**
+ * [그룹 코드 삭제]
+ * 설명: 그룹 코드 삭제 처리
+ */
 CREATE OR ALTER PROCEDURE SP_DELETE_GROUP_CODE
     @GROUP_CODE     NVARCHAR(50)
 AS

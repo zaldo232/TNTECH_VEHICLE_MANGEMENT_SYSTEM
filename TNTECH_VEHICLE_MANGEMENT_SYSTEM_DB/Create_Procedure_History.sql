@@ -1,6 +1,19 @@
-﻿USE TNTECH_VEHICLE_MANGEMENT_SYSTEM
+﻿/**
+ * @file        Create_Procedure_History.sql
+ * @description 차량 운행 이력 및 배차 상태 목록 조회 프로시저 정의
+ */
+
+USE TNTECH_VEHICLE_MANGEMENT_SYSTEM
 GO
 
+/**
+ * [차량 운행 이력 조회]
+ * @param @MEMBER_ID     - 특정 사원 아이디 (NULL일 경우 전체 조회)
+ * @param @FILTER_TYPE   - 상태 필터 (ALL, RESERVED, COMPLETED, RETURNED, CANCELED)
+ * @param @LICENSE_PLATE - 검색 대상 차량 번호
+ * @param @MONTH         - 조회 대상 월 (YYYY-MM)
+ * 설명: 사원, 차량, 기간 등 검색 조건에 따른 전체 운행 및 배차 기록 반환
+ */
 CREATE OR ALTER PROCEDURE SP_GET_HISTORY_LIST
     @MEMBER_ID    NVARCHAR(50) = NULL,
     @FILTER_TYPE  NVARCHAR(20),

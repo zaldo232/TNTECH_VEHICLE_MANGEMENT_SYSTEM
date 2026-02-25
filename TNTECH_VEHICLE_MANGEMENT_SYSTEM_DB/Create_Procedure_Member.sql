@@ -1,7 +1,15 @@
+/**
+ * @file        Create_Procedure_Member.sql
+ * @description 사용자(멤버) 정보의 조회, 등록, 수정, 삭제를 위한 프로시저 정의
+ */
+
 USE TNTECH_VEHICLE_MANGEMENT_SYSTEM
 GO
 
--- 멤버 전체 조회
+/**
+ * [전체 목록 조회]
+ * 설명: 공통 코드 테이블과 조인하여 부서 및 직급의 한글 명칭을 포함한 전체 사원 리스트 반환
+ */
 CREATE OR ALTER PROCEDURE SP_GET_ALL_MEMBERS
 AS
 BEGIN
@@ -20,7 +28,11 @@ BEGIN
 END
 GO
 
--- 멤버 단일 조회
+/**
+ * [특정 사원 상세 정보 조회]
+ * @param @MEMBER_ID - 조회 대상 사번
+ * 설명: 사번을 기준으로 해당 사원의 이름, 부서, 권한 정보 반환
+ */
 CREATE OR ALTER PROCEDURE SP_GET_MEMBER_DETAIL
     @MEMBER_ID NVARCHAR(50)
 AS
@@ -36,6 +48,15 @@ BEGIN
 END
 GO
 
+/**
+ * [신규 사원 등록]
+ * @param @MEMBER_ID       - 등록할 ID
+ * @param @MEMBER_NAME     - 성명
+ * @param @DEPARTMENT      - 부서 코드
+ * @param @MEMBER_PASSWORD - 비밀번호
+ * @param @MEMBER_ROLE     - 권한 코드
+ * 설명: 아이디 중복 여부 검사 후 사원 정보 저장 및 결과 메시지 반환
+ */
 CREATE OR ALTER PROCEDURE SP_REGISTER_MEMBER
     @MEMBER_ID       NVARCHAR(50),
     @MEMBER_NAME     NVARCHAR(50),
@@ -62,6 +83,14 @@ END
 GO
 
 -- 멤버 수정
+/**
+ * [정보 수정]
+ * @param @MEMBER_ID   - 수정 대상 번호
+ * @param @MEMBER_NAME - 수정할 성명
+ * @param @DEPARTMENT  - 변경할 부서 코드
+ * @param @MEMBER_ROLE - 변경할 직급 코드
+ * 설명: 존재 여부 확인 후 이름, 부서, 권한 데이터 업데이트
+ */
 CREATE OR ALTER PROCEDURE SP_UPDATE_MEMBER
     @MEMBER_ID   NVARCHAR(50),
     @MEMBER_NAME NVARCHAR(50),
@@ -87,7 +116,11 @@ BEGIN
 END
 GO
 
--- 멤버 삭제
+/**
+ * [정보 삭제]
+ * @param @MEMBER_ID - 삭제 대상 번호
+ * 설명: 배차 기록 존재 여부 확인 후, 기록이 없는 경우에만 삭제 수행
+ */
 CREATE OR ALTER PROCEDURE SP_DELETE_MEMBER
     @MEMBER_ID NVARCHAR(50)
 AS

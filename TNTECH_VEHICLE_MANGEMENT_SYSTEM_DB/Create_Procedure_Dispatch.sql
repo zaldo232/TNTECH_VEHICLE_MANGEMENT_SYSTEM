@@ -1,6 +1,16 @@
+/**
+ * @file        Create_Procedure_Dispatch.sql
+ * @description 차량 배차 가용성 조회, 신청, 반납, 상태 조회 및 취소 프로시저 정의
+ */
+
 USE TNTECH_VEHICLE_MANGEMENT_SYSTEM
 GO
 
+/**
+ * [배차 가용성 조회]
+ * @param @SEARCH_MONTH - 조회 대상 월 (예: '2026-02')
+ * 설명: 달력 표시를 위해 일자별/모델별 오전·오후 잔여 대수 계산
+ */
 CREATE OR ALTER PROCEDURE SP_GET_DISPATCH_AVAILABILITY
     @SEARCH_MONTH NVARCHAR(7) -- '2026-02'
 AS
@@ -60,6 +70,14 @@ BEGIN
 END
 GO
 
+/**
+ * [배차 신청 등록]
+ * @param @MEMBER_ID - 신청 사번
+ * @param @LICENSE_PLATE - 차량 번호
+ * @param @RENTAL_DATE - 대여 일시
+ * @param @RENTAL_PERIOD - 대여 기간 구분 (AM/PM/ALL)
+ * 설명: 중복 예약 검증 후 일련번호 채번 및 배차·이력 데이터 동시 생성
+ */
 CREATE OR ALTER PROCEDURE SP_REGISTER_DISPATCH_REQUEST
     @MEMBER_ID      NVARCHAR(50),
     @LICENSE_PLATE  NVARCHAR(30),
@@ -83,7 +101,7 @@ BEGIN
     DECLARE @SERIAL_HISTORY INT;
 
     BEGIN TRY
-        -- [추가] 중복 예약 체크 로직
+        -- [중복 체크] 선택 차량의 동일 날짜/교차 시간대 예약 존재 여부 확인
         IF EXISTS (
             SELECT 1 FROM TB_DISPATCH 
             WHERE LICENSE_PLATE = @LICENSE_PLATE 
@@ -98,27 +116,27 @@ BEGIN
 
         BEGIN TRANSACTION;
 
-        -- 정보 조회
+        -- 기본 정보 조회
         SELECT @MEMBER_NAME = MEMBER_NAME, @MEMBER_ROLE = MEMBER_ROLE FROM TB_MEMBERS WHERE MEMBER_ID = @MEMBER_ID;
         SELECT @VEHICLE_NAME = VEHICLE_NAME FROM TB_VEHICLES WHERE LICENSE_PLATE = @LICENSE_PLATE;
 
-        -- 채번 (DISPATCH)
+        -- 채번 (DISPATCH ID 생성)
         IF NOT EXISTS (SELECT 1 FROM TB_LAST_SERIAL WHERE BASE_DATE = 'D000_' + @TODAY AND SERIAL_TYPE = 'DISPATCH')
             INSERT INTO TB_LAST_SERIAL (BASE_DATE, SERIAL_TYPE, LAST_SERIAL) VALUES ('D000_' + @TODAY, 'DISPATCH', 0);
         UPDATE TB_LAST_SERIAL SET @SERIAL_DISPATCH = LAST_SERIAL = LAST_SERIAL + 1 WHERE BASE_DATE = 'D000_' + @TODAY AND SERIAL_TYPE = 'DISPATCH';
         SET @DISPATCH_ID = 'D' + RIGHT('000' + CAST(@SERIAL_DISPATCH AS NVARCHAR), 3) + '_' + @TODAY;
 
-        -- 채번 (HISTORY)
+        -- 채번 (HISTORY ID 생성)
         IF NOT EXISTS (SELECT 1 FROM TB_LAST_SERIAL WHERE BASE_DATE = 'H000_' + @TODAY AND SERIAL_TYPE = 'HISTORY')
             INSERT INTO TB_LAST_SERIAL (BASE_DATE, SERIAL_TYPE, LAST_SERIAL) VALUES ('H000_' + @TODAY, 'HISTORY', 0);
         UPDATE TB_LAST_SERIAL SET @SERIAL_HISTORY = LAST_SERIAL = LAST_SERIAL + 1 WHERE BASE_DATE = 'H000_' + @TODAY AND SERIAL_TYPE = 'HISTORY';
         SET @HISTORY_ID = 'H' + RIGHT('000' + CAST(@SERIAL_HISTORY AS NVARCHAR), 3) + '_' + @TODAY;
 
-        -- 배차 등록
+        -- 배차 정보 저장
         INSERT INTO TB_DISPATCH (DISPATCH_ID, MEMBER_ID, LICENSE_PLATE, DISPATCH_STATUS, RENTAL_DATE, RENTAL_PERIOD, REGION, VISIT_PLACE, BUSINESS_TYPE)
         VALUES (@DISPATCH_ID, @MEMBER_ID, @LICENSE_PLATE, 'RESERVED', @RENTAL_DATE, @RENTAL_PERIOD, @REGION, @VISIT_PLACE, @BUSINESS_TYPE);
 
-        -- 히스토리 등록
+        -- 신청 이력 저장
         INSERT INTO TB_HISTORY (RENTAL_HISTORY_ID, DISPATCH_ID, VEHICLE_NAME, MEMBER_ID, MEMBER_NAME, ACTION_TYPE, NOWROLE, RENTAL_DATE, REGION, VISIT_PLACE, BUSINESS_TYPE)
         VALUES (@HISTORY_ID, @DISPATCH_ID, @VEHICLE_NAME, @MEMBER_ID, @MEMBER_NAME, N'신청', @MEMBER_ROLE, @RENTAL_DATE, @REGION, @VISIT_PLACE, @BUSINESS_TYPE);
 
@@ -132,6 +150,15 @@ BEGIN
 END
 GO
 
+USE TNTECH_VEHICLE_MANGEMENT_SYSTEM
+GO
+
+/**
+ * [차량 반납 처리 (기본)]
+ * @param @DISPATCH_ID - 대상 배차 식별자
+ * @param @RETURN_DATE - 실제 반납 일시
+ * 설명: 주행거리 갱신 및 배차 상태 변경 후 이력 생성
+ */
 CREATE OR ALTER PROCEDURE SP_PROCESS_VEHICLE_RETURN
     @DISPATCH_ID        NVARCHAR(50),   -- 대상 배차 ID
     @RETURN_DATE        DATETIME,       -- 실제 반납 일시
@@ -143,6 +170,13 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
+    -- 유효성 검사: 예약 상태(RESERVED) 여부 확인
+    IF NOT EXISTS (SELECT 1 FROM TB_DISPATCH WHERE DISPATCH_ID = @DISPATCH_ID AND DISPATCH_STATUS = 'RESERVED')
+    BEGIN
+        RAISERROR(N'이미 다른 사용자가 취소했거나 처리 완료된 배차입니다. 화면을 새로고침 하세요.', 16, 1);
+        RETURN;
+    END
+
     DECLARE @TODAY NVARCHAR(8) = CONVERT(NVARCHAR(8), GETDATE(), 112);
     DECLARE @HISTORY_ID NVARCHAR(50);
     DECLARE @SERIAL_HISTORY INT;
@@ -153,14 +187,14 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        -- 1. 기존 정보 조회 (히스토리 기록용)
+        -- 정보 조회
         SELECT @MEMBER_ID = MEMBER_ID, @LICENSE_PLATE = LICENSE_PLATE 
         FROM TB_DISPATCH WHERE DISPATCH_ID = @DISPATCH_ID;
 
         SELECT @MEMBER_NAME = MEMBER_NAME, @MEMBER_ROLE = MEMBER_ROLE FROM TB_MEMBERS WHERE MEMBER_ID = @MEMBER_ID;
         SELECT @VEHICLE_NAME = VEHICLE_NAME FROM TB_VEHICLES WHERE LICENSE_PLATE = @LICENSE_PLATE;
 
-        -- 2. 이력 ID 채번 (H000_YYYYMMDD)
+        -- 이력 ID 채번
         IF NOT EXISTS (SELECT 1 FROM TB_LAST_SERIAL WHERE BASE_DATE = 'H000_' + @TODAY AND SERIAL_TYPE = 'HISTORY')
             INSERT INTO TB_LAST_SERIAL (BASE_DATE, SERIAL_TYPE, LAST_SERIAL) VALUES ('H000_' + @TODAY, 'HISTORY', 0);
 
@@ -169,7 +203,7 @@ BEGIN
 
         SET @HISTORY_ID = 'H' + RIGHT('000' + CAST(@SERIAL_HISTORY AS NVARCHAR), 3) + '_' + @TODAY;
 
-        -- 3. 메인 배차 테이블 업데이트 (상태: RETURNED)
+        -- 배차 상태 업데이트
         UPDATE TB_DISPATCH
         SET DISPATCH_STATUS = 'RETURNED',
             START_MILEAGE = @START_MILEAGE,
@@ -178,18 +212,17 @@ BEGIN
             COMMUTE_DISTANCE = @COMMUTE_DISTANCE
         WHERE DISPATCH_ID = @DISPATCH_ID;
 
-        -- 4. 차량 마스터 주행거리 갱신
+        -- 차량 마스터 정보(최종 주행거리 및 상태) 갱신
         UPDATE TB_VEHICLES
         SET MILEAGE = @END_MILEAGE,
-            VEHICLES_STATUS = 'AVAILABLE' -- 다시 대여 가능 상태로 변경
+            VEHICLES_STATUS = 'AVAILABLE'
         WHERE LICENSE_PLATE = @LICENSE_PLATE;
 
-        -- 5. 이력 관리 테이블 INSERT (Action: 반납)
-        -- 대여 관련 정보는 NULL 처리하고 반납 정보 위주로 입력
+        -- 반납 이력 저장
         INSERT INTO TB_HISTORY (
             RENTAL_HISTORY_ID, DISPATCH_ID, VEHICLE_NAME, MEMBER_ID, MEMBER_NAME, 
             ACTION_TYPE, NOWROLE, RETURN_DATE, END_MILEAGE, BUSINESS_DISTANCE,
-            RENTAL_DATE, REGION, VISIT_PLACE, BUSINESS_TYPE -- 대여 정보는 NULL
+            RENTAL_DATE, REGION, VISIT_PLACE, BUSINESS_TYPE
         ) VALUES (
             @HISTORY_ID, @DISPATCH_ID, @VEHICLE_NAME, @MEMBER_ID, @MEMBER_NAME, 
             N'반납', @MEMBER_ROLE, @RETURN_DATE, @END_MILEAGE, (@END_MILEAGE - @START_MILEAGE - @COMMUTE_DISTANCE),
@@ -205,9 +238,10 @@ BEGIN
 END
 GO
 
-USE TNTECH_VEHICLE_MANGEMENT_SYSTEM
-GO
-
+/**
+ * [배차 현황 목록 조회]
+ * 설명: 특정 사원 또는 월별 배차 신청 내역(RESERVED 상태) 조회
+ */
 CREATE OR ALTER PROCEDURE SP_GET_DISPATCH_STATUS
     @STATUS    NVARCHAR(20),
     @MEMBER_ID NVARCHAR(50) = NULL,
@@ -229,21 +263,26 @@ BEGIN
         D.BUSINESS_TYPE,
         D.START_MILEAGE, 
         V.MILEAGE AS VEHICLE_MILEAGE,
-        D.DISPATCH_STATUS -- [핵심 추가] 프론트에서 확실히 거를 수 있게 상태값을 넘겨줌
+        D.DISPATCH_STATUS 
     FROM TB_DISPATCH D
     JOIN TB_MEMBERS M ON D.MEMBER_ID = M.MEMBER_ID
     JOIN TB_VEHICLES V ON D.LICENSE_PLATE = V.LICENSE_PLATE
     
-    -- [절대 방어] 백엔드에서 뭘 보내든 무시하고, 오직 '대여 중(RESERVED)'인 것만 달력에 노출되도록 강제 고정!
+    -- 조회 범위 고정: 대여 중인 예약 건만 반환
     WHERE D.DISPATCH_STATUS = 'RESERVED' 
       AND (@MONTH IS NULL OR CONVERT(NVARCHAR(7), D.RENTAL_DATE, 120) = @MONTH)
     ORDER BY D.RENTAL_DATE DESC;
 END
 GO
 
+/**
+ * [차량 반납 처리 (데이터 적층형)]
+ * @param @MEMBER_ID - 반납 수행자 (권한 체크용)
+ * 설명: 권한 검증(본인/관리자) 후 기존 배차를 완료(COMPLETED) 처리하고 상세 반납 레코드 신규 생성
+ */
 CREATE OR ALTER PROCEDURE SP_RETURN_VEHICLE_STACK
-    @DISPATCH_ID      NVARCHAR(50), -- [핵심 추가] 어떤 배차건인지 정확히 짚어줌
-    @MEMBER_ID        NVARCHAR(50), 
+    @DISPATCH_ID      NVARCHAR(50), 
+    @MEMBER_ID        NVARCHAR(50), -- 반납 버튼을 누른 사용자 ID
     @LICENSE_PLATE    NVARCHAR(30),
     @END_MILEAGE      INT,
     @RETURN_DATE      DATETIME,
@@ -253,11 +292,36 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
+    DECLARE @CURRENT_STATUS NVARCHAR(20);
+    DECLARE @ORIG_MEMBER_ID NVARCHAR(50);
+    DECLARE @REQ_ROLE NVARCHAR(50);
+
+    -- 상태 및 예약자 정보 확인
+    SELECT 
+        @CURRENT_STATUS = DISPATCH_STATUS,
+        @ORIG_MEMBER_ID = MEMBER_ID
+    FROM TB_DISPATCH 
+    WHERE DISPATCH_ID = @DISPATCH_ID;
+
+    IF @CURRENT_STATUS IS NULL OR @CURRENT_STATUS != 'RESERVED'
+    BEGIN
+        RAISERROR(N'대여 중(RESERVED) 상태인 배차만 반납할 수 있습니다.', 16, 1);
+        RETURN;
+    END
+
+    -- 권한 체크: 본인 또는 최고관리자 여부 확인
+    SELECT @REQ_ROLE = MEMBER_ROLE FROM TB_MEMBERS WHERE MEMBER_ID = @MEMBER_ID;
+
+    IF @ORIG_MEMBER_ID != @MEMBER_ID AND ISNULL(@REQ_ROLE, '') != 'ADMINISTRATOR'
+    BEGIN
+        RAISERROR(N'권한 오류: 본인이 대여한 차량만 반납할 수 있습니다.', 16, 1);
+        RETURN;
+    END
+
     DECLARE @TODAY NVARCHAR(8) = CONVERT(NVARCHAR(8), GETDATE(), 112);
     DECLARE @NEW_DISPATCH_ID NVARCHAR(50);
     DECLARE @SERIAL_DISPATCH INT;
     
-    DECLARE @ORIG_MEMBER_ID   NVARCHAR(50); 
     DECLARE @ORIG_RENTAL_DATE DATETIME;
     DECLARE @ORIG_PERIOD      NVARCHAR(20);
     DECLARE @ORIG_REGION      NVARCHAR(100);
@@ -265,30 +329,27 @@ BEGIN
     DECLARE @START_MILEAGE    INT;
 
     BEGIN TRY
-        -- 1. [수정] 차 번호가 아니라 '고유 ID'로 정확히 그 예약만 가져옴
+        -- 원본 데이터 추출
         SELECT TOP 1 
-            @ORIG_MEMBER_ID   = MEMBER_ID,   
             @ORIG_RENTAL_DATE = RENTAL_DATE,
             @ORIG_PERIOD      = RENTAL_PERIOD,
             @ORIG_REGION      = REGION,
             @ORIG_BIZ_TYPE    = BUSINESS_TYPE,
             @START_MILEAGE    = (SELECT MILEAGE FROM TB_VEHICLES WHERE LICENSE_PLATE = @LICENSE_PLATE)
-        FROM TB_DISPATCH
-        WHERE DISPATCH_ID = @DISPATCH_ID; -- [수정] 타겟팅 완벽 고정
+        FROM TB_DISPATCH WHERE DISPATCH_ID = @DISPATCH_ID;
 
         BEGIN TRANSACTION;
 
-        -- 2. [수정] 정확히 그 예약만 'COMPLETED' 처리
-        UPDATE TB_DISPATCH SET DISPATCH_STATUS = 'COMPLETED' 
-        WHERE DISPATCH_ID = @DISPATCH_ID;
+        -- 원본 배차 건 완료 처리
+        UPDATE TB_DISPATCH SET DISPATCH_STATUS = 'COMPLETED' WHERE DISPATCH_ID = @DISPATCH_ID;
 
-        -- 3. 새 ID 채번
+        -- 반납용 신규 ID 채번
         IF NOT EXISTS (SELECT 1 FROM TB_LAST_SERIAL WHERE BASE_DATE = 'D000_' + @TODAY AND SERIAL_TYPE = 'DISPATCH')
             INSERT INTO TB_LAST_SERIAL (BASE_DATE, SERIAL_TYPE, LAST_SERIAL) VALUES ('D000_' + @TODAY, 'DISPATCH', 0);
         UPDATE TB_LAST_SERIAL SET @SERIAL_DISPATCH = LAST_SERIAL = LAST_SERIAL + 1 WHERE BASE_DATE = 'D000_' + @TODAY AND SERIAL_TYPE = 'DISPATCH';
         SET @NEW_DISPATCH_ID = 'D' + RIGHT('000' + CAST(@SERIAL_DISPATCH AS NVARCHAR), 3) + '_' + @TODAY;
 
-        -- 4. 반납 줄 INSERT
+        -- 반납 상세 데이터 적층
         INSERT INTO TB_DISPATCH (
             DISPATCH_ID, MEMBER_ID, LICENSE_PLATE, DISPATCH_STATUS, 
             RENTAL_DATE, RENTAL_PERIOD, REGION, VISIT_PLACE, BUSINESS_TYPE, 
@@ -299,7 +360,7 @@ BEGIN
             @START_MILEAGE, @END_MILEAGE, @RETURN_DATE
         );
 
-        -- 5. 주행거리 갱신
+        -- 차량 마스터 업데이트
         UPDATE TB_VEHICLES SET MILEAGE = @END_MILEAGE, VEHICLES_STATUS = 'AVAILABLE' WHERE LICENSE_PLATE = @LICENSE_PLATE;
 
         COMMIT TRANSACTION;
@@ -311,6 +372,10 @@ BEGIN
 END
 GO
 
+/**
+ * [대시보드 월간 배차 내역 조회]
+ * 설명: 대시보드 캘린더 구성을 위해 특정 월의 배차 데이터를 명칭 JOIN 처리하여 반환
+ */
 CREATE OR ALTER PROCEDURE SP_GET_DASHBOARD_DISPATCH
     @TARGET_MONTH NVARCHAR(7)
 AS
@@ -338,6 +403,11 @@ BEGIN
 END
 GO
 
+/**
+ * [배차 신청 취소]
+ * @param @MEMBER_ID - 취소 수행자
+ * 설명: 상태 확인 및 권한 검증 후 배차 상태를 CANCELED로 변경하고 히스토리 기록
+ */
 CREATE OR ALTER PROCEDURE [dbo].[SP_CANCEL_DISPATCH]
     @DISPATCH_ID NVARCHAR(50),
     @MEMBER_ID NVARCHAR(50) -- 취소를 요청한 사용자 ID
@@ -346,41 +416,49 @@ BEGIN
     SET NOCOUNT ON;
 
     BEGIN TRY
-        -- 1. 데이터 존재 여부 및 현재 상태 확인
         DECLARE @CURRENT_STATUS NVARCHAR(20);
+        DECLARE @ORIG_MEMBER_ID NVARCHAR(50);
+        DECLARE @REQ_ROLE NVARCHAR(50);
         
-        SELECT @CURRENT_STATUS = DISPATCH_STATUS 
+        -- 정보 조회
+        SELECT 
+            @CURRENT_STATUS = DISPATCH_STATUS,
+            @ORIG_MEMBER_ID = MEMBER_ID
         FROM TB_DISPATCH 
         WHERE DISPATCH_ID = @DISPATCH_ID;
 
+        -- 데이터 유효성 검사
         IF @CURRENT_STATUS IS NULL
         BEGIN
             SELECT 0 AS [SUCCESS], '해당 배차 내역을 찾을 수 없습니다.' AS [MSG];
             RETURN;
         END
 
+        -- 상태 검사: 예약 중인 건만 취소 가능
         IF @CURRENT_STATUS != 'RESERVED'
         BEGIN
             SELECT 0 AS [SUCCESS], '예약(RESERVED) 상태인 배차만 취소할 수 있습니다.' AS [MSG];
             RETURN;
         END
 
+        -- 권한 검증: 본인 또는 관리자 여부 확인
+        SELECT @REQ_ROLE = MEMBER_ROLE FROM TB_MEMBERS WHERE MEMBER_ID = @MEMBER_ID;
+
+        IF @ORIG_MEMBER_ID != @MEMBER_ID AND ISNULL(@REQ_ROLE, '') != 'ADMINISTRATOR'
+        BEGIN
+            SELECT 0 AS [SUCCESS], '권한 오류: 본인이 신청한 차량만 취소할 수 있습니다.' AS [MSG];
+            RETURN;
+        END
+
         BEGIN TRAN;
 
-        -- 2. 배차 테이블 상태 변경 (RESERVED -> CANCELED)
-        UPDATE TB_DISPATCH
-        SET DISPATCH_STATUS = 'CANCELED'
-        WHERE DISPATCH_ID = @DISPATCH_ID;
+        -- 취소 업데이트
+        UPDATE TB_DISPATCH SET DISPATCH_STATUS = 'CANCELED' WHERE DISPATCH_ID = @DISPATCH_ID;
 
-        -- 3. 이력 테이블(TB_HISTORY)에 취소 내역 기록
+        -- 취소 이력 기록
         DECLARE @HISTORY_ID NVARCHAR(50) = 'H' + FORMAT(GETDATE(), 'yyyyMMddHHmmss') + '_' + LEFT(REPLACE(NEWID(), '-', ''), 5);
-        
-        INSERT INTO TB_HISTORY (
-            RENTAL_HISTORY_ID, DISPATCH_ID, MEMBER_ID, ACTION_TYPE, CREATED_AT
-        )
-        VALUES (
-            @HISTORY_ID, @DISPATCH_ID, @MEMBER_ID, '취소', GETDATE()
-        );
+        INSERT INTO TB_HISTORY (RENTAL_HISTORY_ID, DISPATCH_ID, MEMBER_ID, ACTION_TYPE, CREATED_AT)
+        VALUES (@HISTORY_ID, @DISPATCH_ID, @MEMBER_ID, '취소', GETDATE());
 
         COMMIT TRAN;
         SELECT 1 AS [SUCCESS], '배차 예약이 취소되었습니다.' AS [MSG];
