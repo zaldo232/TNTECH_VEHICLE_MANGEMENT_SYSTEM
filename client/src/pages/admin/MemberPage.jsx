@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { Box, TextField } from '@mui/material';
+import { Box } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 
 import DataTable from '../../components/common/DataTable';
 import SearchFilterBar from '../../components/common/SearchFilterBar';
 import CommonDialog from '../../components/common/CommonDialog'; 
-import CommonCodeSelect from '../../components/common/CommonCodeSelect';
 import { useDataTable } from '../../hooks/useDataTable';
+
+import MemberForm from '../../components/admin/MemberForm';
 
 const MemberPage = () => {
   const { t } = useTranslation();
@@ -64,12 +65,9 @@ const MemberPage = () => {
         <DataTable columns={columns} rows={filteredRows} onRowClick={handleRowClick} />
       </Box>
 
+      {/* 팝업창 안이 한 줄로 아주 깔끔해졌습니다! */}
       <CommonDialog open={open} onClose={() => setOpen(false)} title={isEdit ? t('member.edit') : t('member.register')} isEdit={isEdit} onSave={handleSave} onDelete={handleDelete}>
-        <TextField label={t('member.id')} value={formData.memberId} disabled={isEdit} fullWidth onChange={(e) => setFormData({...formData, memberId: e.target.value})} />
-        {!isEdit && <TextField label={t('member.password')} type="password" value={formData.password} fullWidth onChange={(e) => setFormData({...formData, password: e.target.value})} />}
-        <TextField label={t('member.name')} value={formData.name} fullWidth onChange={(e) => setFormData({...formData, name: e.target.value})} />
-        <CommonCodeSelect groupCode="부서" label={t('member.dept')} value={formData.dept} onChange={(e) => setFormData({...formData, dept: e.target.value})} />
-        <CommonCodeSelect groupCode="직급" label={t('member.role')} value={formData.role} onChange={(e) => setFormData({...formData, role: e.target.value})} />
+        <MemberForm isEdit={isEdit} formData={formData} setFormData={setFormData} t={t} />
       </CommonDialog>
     </Box>
   );

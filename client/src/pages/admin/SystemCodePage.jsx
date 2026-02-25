@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Box, TextField } from '@mui/material';
+import { Box } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 
 import DataTable from '../../components/common/DataTable';
@@ -8,32 +8,8 @@ import SearchFilterBar from '../../components/common/SearchFilterBar';
 import CommonDialog from '../../components/common/CommonDialog';
 import { useDataTable } from '../../hooks/useDataTable';
 
-// 파일 내부에 정의했던 스마트 드롭다운 유지
-const GroupCodeSelect = ({ value, onChange, disabled }) => {
-  const { t } = useTranslation();
-  const [options, setOptions] = React.useState([]);
-
-  React.useEffect(() => {
-    const fetchOptions = async () => {
-      try {
-        const res = await axios.get('/api/system/groupcodes');
-        setOptions(res.data);
-      } catch (err) { console.error('Failed to load group codes', err); }
-    };
-    fetchOptions();
-  }, []);
-
-  return (
-    <TextField select fullWidth required disabled={disabled} label={t('code.group')} name="groupCode" value={value || ''} onChange={onChange}>
-      {(!value || options.length === 0) && <MenuItem value="" sx={{ display: 'none' }}></MenuItem>}
-      {options.map((group) => (
-        <MenuItem key={group.GROUP_CODE} value={group.GROUP_CODE}>
-          {group.GROUP_NAME} ({group.GROUP_CODE})
-        </MenuItem>
-      ))}
-    </TextField>
-  );
-};
+// ✅ 분리한 폼 컴포넌트 불러오기
+import SystemCodeForm from '../../components/admin/SystemCodeForm';
 
 const SystemCodePage = () => {
   const { t } = useTranslation();
@@ -41,7 +17,6 @@ const SystemCodePage = () => {
   const [isEdit, setIsEdit] = useState(false);
   const [formData, setFormData] = useState({ groupCode: '', contentCode: '', codeName: '', sortOrder: 0 });
 
-  // 복합키 ID 처리는 훅 내부에서 자동으로 수행됨
   const { filteredRows, searchText, handleSearch, fetchData } = useDataTable(
     '/api/system/codes',
     ['GROUP_CODE', 'CODE_NAME']
@@ -78,18 +53,32 @@ const SystemCodePage = () => {
 
   return (
     <Box sx={{ p: 2, height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <SearchFilterBar title={t('menu.code_mgmt')} searchQuery={searchText} onSearchChange={handleSearch} 
+      <SearchFilterBar 
+        title={t('menu.code_mgmt')} 
+        searchQuery={searchText} 
+        onSearchChange={handleSearch} 
         onAdd={() => { setIsEdit(false); setFormData({ groupCode: '', contentCode: '', codeName: '', sortOrder: 0 }); setOpen(true); }} 
       />
+      
       <Box sx={{ flexGrow: 1, width: '100%', minHeight: 0 }}>
         <DataTable columns={columns} rows={filteredRows} onRowClick={handleRowClick} />
       </Box>
 
-      <CommonDialog open={open} onClose={() => setOpen(false)} title={isEdit ? t('menu.code_edit') : t('menu.code_register')} isEdit={isEdit} onSave={handleSave} onDelete={handleDelete}>
-        <GroupCodeSelect value={formData.groupCode} onChange={(e) => setFormData({...formData, groupCode: e.target.value})} disabled={isEdit} />
-        <TextField label={t('code.content')} value={formData.contentCode} onChange={(e) => setFormData({...formData, contentCode: e.target.value})} fullWidth required disabled={isEdit} />
-        <TextField label={t('code.name')} value={formData.codeName} onChange={(e) => setFormData({...formData, codeName: e.target.value})} fullWidth required />
-        <TextField label={t('code.sort')} type="number" value={formData.sortOrder} onChange={(e) => setFormData({...formData, sortOrder: e.target.value})} fullWidth />
+      {/* ✅ 다이얼로그 안이 한 줄로 정리되었습니다 */}
+      <CommonDialog 
+        open={open} 
+        onClose={() => setOpen(false)} 
+        title={isEdit ? t('menu.code_edit') : t('menu.code_register')} 
+        isEdit={isEdit} 
+        onSave={handleSave} 
+        onDelete={handleDelete}
+      >
+        <SystemCodeForm 
+          isEdit={isEdit} 
+          formData={formData} 
+          setFormData={setFormData} 
+          t={t} 
+        />
       </CommonDialog>
     </Box>
   );

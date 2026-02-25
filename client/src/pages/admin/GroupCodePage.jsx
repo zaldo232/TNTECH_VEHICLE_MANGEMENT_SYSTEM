@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Box, TextField } from '@mui/material';
+import { Box } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 
 import DataTable from '../../components/common/DataTable';
 import SearchFilterBar from '../../components/common/SearchFilterBar';
 import CommonDialog from '../../components/common/CommonDialog';
 import { useDataTable } from '../../hooks/useDataTable';
+
+import GroupCodeForm from '../../components/admin/GroupCodeForm';
 
 const GroupCodePage = () => {
   const { t } = useTranslation();
@@ -50,17 +52,31 @@ const GroupCodePage = () => {
 
   return (
     <Box sx={{ p: 2, height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <SearchFilterBar title={t('groupcode.title')} searchQuery={searchText} onSearchChange={handleSearch} 
+      <SearchFilterBar 
+        title={t('groupcode.title')} 
+        searchQuery={searchText} 
+        onSearchChange={handleSearch} 
         onAdd={() => { setIsEdit(false); setFormData({ groupCode: '', groupName: '', description: '' }); setOpen(true); }} 
       />
+      
       <Box sx={{ flexGrow: 1, width: '100%', minHeight: 0 }}>
         <DataTable columns={columns} rows={filteredRows} onRowClick={handleRowClick} />
       </Box>
 
-      <CommonDialog open={open} onClose={() => setOpen(false)} title={isEdit ? t('groupcode.edit') : t('groupcode.register')} isEdit={isEdit} onSave={handleSave} onDelete={handleDelete}>
-        <TextField label={t('groupcode.code')} value={formData.groupCode} onChange={(e) => setFormData({...formData, groupCode: e.target.value})} fullWidth disabled={isEdit} />
-        <TextField label={t('groupcode.name')} value={formData.groupName} onChange={(e) => setFormData({...formData, groupName: e.target.value})} fullWidth />
-        <TextField label={t('groupcode.description')} value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} fullWidth />
+      <CommonDialog 
+        open={open} 
+        onClose={() => setOpen(false)} 
+        title={isEdit ? t('groupcode.edit') : t('groupcode.register')} 
+        isEdit={isEdit} 
+        onSave={handleSave} 
+        onDelete={handleDelete}
+      >
+        <GroupCodeForm 
+          isEdit={isEdit} 
+          formData={formData} 
+          setFormData={setFormData} 
+          t={t} 
+        />
       </CommonDialog>
     </Box>
   );

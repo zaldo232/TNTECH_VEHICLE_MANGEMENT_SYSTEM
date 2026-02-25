@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Box, TextField, FormControlLabel, Checkbox, Typography, Divider } from '@mui/material';
-import SettingsIcon from '@mui/icons-material/Settings';
-import { Button, Dialog, DialogTitle, DialogContent, DialogActions, Stack, InputAdornment } from '@mui/material';
+import { Box, Typography, Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 
 import DataTable from '../../components/common/DataTable';
 import SearchFilterBar from '../../components/common/SearchFilterBar';
 import CommonDialog from '../../components/common/CommonDialog';
-import CommonCodeSelect from '../../components/common/CommonCodeSelect';
 import { useDataTable } from '../../hooks/useDataTable';
+
+import VehicleForm from '../../components/admin/VehicleForm';
+import VehicleMaintenanceForm from '../../components/admin/VehicleMaintenanceForm';
 
 const VehiclePage = () => {
   const { t } = useTranslation();
@@ -22,7 +22,6 @@ const VehiclePage = () => {
   const [managementSettingsOpen, setManagementSettingsOpen] = useState(false);
   const [managementSettings, setManagementSettings] = useState([]);
 
-  // ✅ 훅 호출 (idField는 반드시 대문자 LICENSE_PLATE 확인)
   const { filteredRows, searchText, handleSearch, fetchData } = useDataTable(
     '/api/vehicles', 
     ['LICENSE_PLATE', 'VEHICLE_NAME'], 
@@ -38,7 +37,6 @@ const VehiclePage = () => {
       width: 400, 
       renderCell: (params) => {
         const row = params.row;
-        // ✅ 데이터가 없을 때를 대비해 옵셔널 체이닝 추가
         const alerts = row.MAINTENANCE_ALERTS ? row.MAINTENANCE_ALERTS.split(', ') : [];
         return (
           <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
@@ -86,7 +84,7 @@ const VehiclePage = () => {
     try {
       await axios.post('/api/vehicles', formData);
       setOpen(false);
-      fetchData(); // 훅에서 받은 데이터 갱신 함수 호출
+      fetchData(); 
     } catch (err) { alert(t('common.save_failed')); }
   };
 
@@ -126,48 +124,36 @@ const VehiclePage = () => {
         <DataTable columns={columns} rows={filteredRows} onRowClick={handleRowClick} />
       </Box>
 
+      {/* 1. 차량 기본 정보 팝업 알맹이 교체 */}
       <CommonDialog
         open={open} onClose={() => setOpen(false)} isEdit={isEdit} onSave={handleSave} onDelete={handleDelete}
         title={isEdit ? t('vehicle.edit') : t('vehicle.register')}
       >
-        <TextField label={t('vehicle.plate')} value={formData.licensePlate} disabled={isEdit} fullWidth onChange={(e) => setFormData({...formData, licensePlate: e.target.value})} />
-        <TextField label={t('vehicle.model')} value={formData.vehicleName} fullWidth onChange={(e) => setFormData({...formData, vehicleName: e.target.value})} />
-        <TextField label={t('vehicle.mileage')} type="number" value={formData.mileage} fullWidth onChange={(e) => setFormData({...formData, mileage: e.target.value})} />
-        <CommonCodeSelect groupCode="차량상태" label={t('vehicle.status')} value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})} />
-        <FormControlLabel control={<Checkbox checked={formData.isManaged === 'Y'} onChange={(e) => setFormData({ ...formData, isManaged: e.target.checked ? 'Y' : 'N' })} />} label={t('vehicle.managed_checkbox')} />
-        
-        {isEdit && (
-          <>
-            <Divider sx={{ my: 1 }} />
-            <Button variant="outlined" color="secondary" fullWidth startIcon={<SettingsIcon />} onClick={handleOpenManagementSettings} sx={{ py: 1.2, fontWeight: 'bold' }}>
-              {t('vehicle.maintenance_settings_btn')}
-            </Button>
-          </>
-        )}
+        <VehicleForm 
+          isEdit={isEdit} 
+          formData={formData} 
+          setFormData={setFormData} 
+          onOpenSettings={handleOpenManagementSettings} 
+          t={t} 
+        />
       </CommonDialog>
 
-      {/* 점검 주기 설정 (원본 유지) */}
+      {/* 2. 점검 주기 설정 팝업 알맹이 교체 */}
       <Dialog open={managementSettingsOpen} onClose={() => setManagementSettingsOpen(false)}>
         <DialogTitle sx={{ bgcolor: 'secondary.main', color: 'white', fontWeight: 'bold' }}>
           {t('vehicle.maintenance_settings_title')} ({formData.licensePlate})
         </DialogTitle>
         <DialogContent sx={{ minWidth: 420, pt: 4 }}>
-          <Stack spacing={3} sx={{ mt: 1 }}>
-            {managementSettings.map((item, index) => (
-              <Box key={item.MANAGEMENT_TYPE} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Typography variant="subtitle1" fontWeight="medium" sx={{ minWidth: 120 }}>{item.CODE_NAME}</Typography>
-                <TextField size="small" type="number" value={item.INTERVAL_KM} onChange={(e) => { 
-                  const next = [...managementSettings]; 
-                  next[index].INTERVAL_KM = e.target.value; 
-                  setManagementSettings(next); 
-                }} InputProps={{ endAdornment: <InputAdornment position="end">km</InputAdornment> }} sx={{ width: 180 }} />
-              </Box>
-            ))}
-          </Stack>
+          <VehicleMaintenanceForm 
+            managementSettings={managementSettings} 
+            setManagementSettings={setManagementSettings} 
+          />
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>
           <Button onClick={() => setManagementSettingsOpen(false)}>{t('common.cancel')}</Button>
-          <Button variant="contained" color="secondary" onClick={handleSaveManagementSettings}>{t('vehicle.save_settings')}</Button>
+          <Button variant="contained" color="secondary" onClick={handleSaveManagementSettings}>
+            {t('vehicle.save_settings')}
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>
