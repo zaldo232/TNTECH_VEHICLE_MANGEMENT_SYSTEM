@@ -51,7 +51,7 @@ const SearchFilterBar = ({
         spacing={1} 
         sx={{ alignItems: 'stretch' }}
       >
-        {/* ✅ 1순위: 검색 텍스트 필드 */}
+        {/* 1순위: 검색 텍스트 필드 */}
         {onSearchChange && (
           <TextField 
             size="small" 
@@ -68,10 +68,10 @@ const SearchFilterBar = ({
           />
         )}
 
-        {/* ✅ 2순위: 추가 필터 요소 (ex: HistoryPage에서 넘어온 콤보박스) */}
+        {/* 2순위: 추가 필터 요소 (ex: HistoryPage에서 넘어온 콤보박스) */}
         {children}
 
-        {/* ✅ 3순위: 신규 등록 버튼 (맨 오른쪽 고정) */}
+        {/* 3순위: 신규 등록 버튼 (맨 오른쪽 고정) */}
         {onAdd && (
           <Button 
             variant="contained" 

@@ -69,7 +69,8 @@
     "deleted": "삭제되었습니다.",
     "delete_failed": "삭제 실패",
     "fill_required": "모든 필드를 입력해주세요.",
-    "save_failed": "저장 실패"
+    "save_failed": "저장 실패",
+    "add_btn":"신규 등록"
   },
   "code": {
     "group": "그룹코드",

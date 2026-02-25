@@ -14,7 +14,7 @@ import MobileCalendarList from '../../components/common/MobileCalendarList';
 import RightDrawer from '../../components/common/RightDrawer';
 import '../Dispatch/CalendarCustom.css'; 
 
-// ✅ 분리한 컴포넌트들 
+// 분리한 컴포넌트들 
 import CalendarDayCell from '../../components/Dispatch/CalendarDayCell'; 
 import DispatchDetailContent from '../../components/Dispatch/DispatchDetailContent';
 
