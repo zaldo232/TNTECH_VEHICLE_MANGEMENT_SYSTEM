@@ -1,3 +1,8 @@
+/**
+ * @file        CommonDialog.jsx
+ * @description 시스템 전반에서 데이터의 등록 및 수정을 처리하기 위해 사용하는 공통 다이얼로그(모달) 컴포넌트
+ */
+
 import React from 'react';
 import { 
   Dialog, DialogTitle, DialogContent, DialogActions, 
@@ -7,14 +12,15 @@ import { useTheme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 
 /**
- * @param {boolean} open - 모달 열림 상태
- * @param {function} onClose - 닫기 핸들러
- * @param {string} title - 모달 제목
- * @param {boolean} isEdit - 수정 모드 여부 (true면 좌측 하단에 삭제 버튼 렌더링)
- * @param {function} onSave - 저장 버튼 핸들러
- * @param {function} onDelete - 삭제 버튼 핸들러
- * @param {ReactNode} children - 폼 알맹이 (TextField 등)
- * @param {string} maxWidth - 모달 최대 너비 (기본값: 'sm')
+ * [공통 다이얼로그 컴포넌트]
+ * @param {boolean} open        - 모달의 활성화 상태
+ * @param {function} onClose    - 모달 닫기 핸들러
+ * @param {string} title        - 상단 제목 텍스트
+ * @param {boolean} isEdit      - 수정 모드 여부 (버튼 텍스트 및 삭제 버튼 노출 제어)
+ * @param {function} onSave     - 저장(등록/수정) 실행 함수
+ * @param {function} onDelete   - 삭제 실행 함수
+ * @param {ReactNode} children  - 내부에 렌더링할 입력 폼 요소
+ * @param {string} maxWidth     - 다이얼로그 최대 너비 설정 (기본값: 'sm')
  */
 const CommonDialog = ({
   open,
@@ -36,9 +42,9 @@ const CommonDialog = ({
         {title}
       </DialogTitle>
       
-      {/* 알맹이가 들어가는 곳 */}
+      {/* 폼 콘텐츠 입력 영역: 하위 컴포넌트(Form)들이 렌더링 */}
       <DialogContent>
-        {/* 수정포인트: 모바일(xs)은 100%, PC(sm 이상)는 400px 적용. 세로 간격(gap) 2로 복구 */}
+        {/* 모바일 대응 레이아웃 설정: sm 이상에서 최소 너비 400px 확보 */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1, minWidth: { xs: '100%', sm: 400 } }}>
           {children}
         </Box>
@@ -46,7 +52,7 @@ const CommonDialog = ({
 
       <DialogActions sx={{ justifyContent: 'space-between', px: 3, pb: 3, pt: 1 }}>
         <Box>
-          {/* 수정 모드일 때만 삭제 버튼 표시 */}
+          {/* 수정 모드이며 삭제 핸들러가 존재할 경우에만 삭제 버튼 활성화 */}
           {isEdit && onDelete && (
             <Button onClick={onDelete} color="error" variant="outlined">
               {t('common.delete')}
@@ -54,6 +60,7 @@ const CommonDialog = ({
           )}
         </Box>
         <Box>
+          {/* 취소 및 저장/등록 버튼 영역 */}
           <Button onClick={onClose} sx={{ mr: 1 }}>
             {t('common.cancel')}
           </Button>

@@ -118,8 +118,28 @@ const ManagementPage = () => {
     if (!isMobile && calendarRef.current) calendarRef.current.getApi().unselect(); 
   };
 
-  const renderListItem = (item, i) => (
-    <Box key={i} onClick={() => handleItemClick(item)} sx={{ borderLeft: '4px solid #1976d2', bgcolor: 'rgba(25, 118, 210, 0.05)', px: 1, py: 0.5, borderRadius: '0 4px 4px 0', fontSize: '13px', fontWeight: 600, color: 'primary.dark', cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+const renderListItem = (item, i) => (
+    <Box 
+      key={i} 
+      onClick={(e) => {
+        e.stopPropagation(); 
+        handleItemClick(item);
+      }} 
+      sx={{ 
+        borderLeft: '4px solid #1976d2', 
+        bgcolor: 'rgba(25, 118, 210, 0.05)', 
+        px: 1, 
+        py: 0.5, 
+        borderRadius: '0 4px 4px 0', 
+        fontSize: '13px', 
+        fontWeight: 600, 
+        color: 'primary.dark', 
+        cursor: 'pointer', 
+        whiteSpace: 'nowrap', 
+        overflow: 'hidden', 
+        textOverflow: 'ellipsis' 
+      }}
+    >
       {item.VEHICLE_NAME} ({item.typeLabel || t('management.content')})
     </Box>
   );
