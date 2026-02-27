@@ -1,3 +1,8 @@
+/**
+ * @file        HistoryPage.jsx
+ * @description 차량 운행 이력(History)을 조회하고 필터링/검색하는 페이지
+ */
+
 import React, { useState, useMemo } from 'react';
 import { Box, FormControl, Select, MenuItem } from '@mui/material';
 import { useTranslation } from 'react-i18next';
@@ -10,22 +15,29 @@ import { getHistoryColumns } from './HistoryColumns';
 
 const HistoryPage = () => {
   const { t, i18n } = useTranslation();
+  
+  /** [상태 관리] 목록 조회용 필터 조건 (기본값: 'ALL' 전체 조회) */
   const [filter, setFilter] = useState('ALL'); 
 
-  // 데이터 로직: filter가 바뀔 때마다 자동으로 서버에서 다시 가져옵니다.
+  /** * [데이터 로드 및 검색 훅] 
+   * filter 상태가 변경될 때마다 URL 파라미터가 갱신되어 자동으로 서버에서 새 데이터를 가져옵니다.
+   */
   const { filteredRows, searchText, handleSearch } = useDataTable(
     `/api/history/list?filterType=${filter}`, 
     ['VEHICLE_NAME', 'LICENSE_PLATE', 'MEMBER_NAME', 'REGION', 'VISIT_PLACE'],
     'DISPATCH_ID'
   );
 
-  // 컬럼 객체 생성 (t와 i18n(언어)이 바뀔 때만 재실행되도록 useMemo로 성능 최적화)
+  /** * [컬럼 정의 및 최적화]
+   * 다국어 번역 객체(t, i18n)가 변경될 때만 컬럼 배열을 다시 생성하도록 메모이제이션(useMemo) 처리
+   */
   const columns = useMemo(() => getHistoryColumns(t, i18n), [t, i18n]);
 
+  /** [렌더링 영역] */
   return (
     <Box sx={{ p: 2, pb: { xs: 10, md: 2 }, height: '100vh', display: 'flex', flexDirection: 'column' }}>
       
-      {/* 상단바: 검색 기능과 필터 셀렉트 박스 통합 */}
+      {/* 상단바: 제목, 검색창, 상태 필터 셀렉트 박스 통합 영역 */}
       <SearchFilterBar 
         title={t('history.title')}
         searchQuery={searchText}
@@ -47,6 +59,7 @@ const HistoryPage = () => {
         </FormControl>
       </SearchFilterBar>
 
+      {/* 중앙 데이터 리스트 (DataGrid) 영역 */}
       <Box sx={{ flexGrow: 1, width: '100%', minHeight: 0 }}>
         <DataTable columns={columns} rows={filteredRows} />
       </Box>

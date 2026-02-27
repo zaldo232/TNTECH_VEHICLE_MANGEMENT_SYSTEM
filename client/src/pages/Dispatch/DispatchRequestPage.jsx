@@ -1,3 +1,8 @@
+/**
+ * @file        DispatchRequestPage.jsx
+ * @description 차량 배차 신청을 위한 캘린더 조회 및 예약 폼 페이지
+ */
+
 import React, { useState, useEffect } from 'react';
 import { Box, Paper, useMediaQuery } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -14,9 +19,9 @@ import MobileCalendarList from '../../components/common/MobileCalendarList';
 import RightDrawer from '../../components/common/RightDrawer'; 
 import './CalendarCustom.css';
 
-//  분리된 컴포넌트 임포트
 import CalendarDayCell from '../../components/Dispatch/CalendarDayCell';
 import DispatchRequestForm from '../../components/Dispatch/DispatchRequestForm';
+import CalendarItem from '../../components/Dispatch/CalendarItem';
 
 const DispatchRequestPage = () => {
   const { t, i18n } = useTranslation();
@@ -24,12 +29,13 @@ const DispatchRequestPage = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  // 상태 관리
+  /** [상태 관리] UI 제어 및 모달 상태 */
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false); 
   const [selectedDispatchId, setSelectedDispatchId] = useState(null); 
   const [selectedDispatchGroup, setSelectedDispatchGroup] = useState([]); 
 
+  /** [상태 관리] 폼 데이터 및 옵션 리스트 */
   const [availableVehicles, setAvailableVehicles] = useState([]); 
   const [dispatchData, setDispatchData] = useState({}); 
   const [periodOptions, setPeriodOptions] = useState([]); 
@@ -38,14 +44,19 @@ const DispatchRequestPage = () => {
   
   const [formData, setFormData] = useState({ licensePlate: '', region: '', visitPlace: '', bizType: '', period: '', memberName: '' });
 
+  // 대여 구분 코드명 매핑
   const periodMap = { 'ALL': t('dispatch.all_day'), 'AM': t('dispatch.am'), 'PM': t('dispatch.pm') };
 
+  /** [커스텀 훅] 캘린더 공통 제어 로직 (이동, 날짜 설정 등) */
   const { 
     currentDate, calendarRef, todayRef, scrollContainerRef, 
     handleDatesSet, handlePrev, handleNext, handleToday, handleJumpDate 
   } = useCalendar(new Date(), isMobile, isSidebarOpen, dispatchData);
 
-  // 데이터 패칭 로직
+  /**
+   * [데이터 패칭] 월별 배차 예약(RESERVED) 현황 로드
+   * @param {Date} targetDate - 조회할 대상 월이 포함된 Date 객체
+   */
   const fetchDispatchData = async (targetDate) => {
     try {
       const year = targetDate.getFullYear();
@@ -62,6 +73,7 @@ const DispatchRequestPage = () => {
     } catch (err) { console.error("배차 데이터 로드 실패:", err); }
   };
 
+  /** [초기화] 컴포넌트 마운트 시 기초 데이터(차량, 공통코드) 로드 */
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
@@ -77,15 +89,22 @@ const DispatchRequestPage = () => {
     fetchInitialData();
   }, []);
 
+  /** [이벤트 핸들러] 캘린더 날짜 변경 시 데이터 재조회 */
   const handleCalendarDatesSet = (dateInfo) => handleDatesSet(dateInfo, fetchDispatchData);
   const handleJump = (y, m) => handleJumpDate(y, m, fetchDispatchData);
 
-  // 비즈니스 로직 핸들러
+  /**
+   * [이벤트 핸들러] 캘린더 내 기존 배차 내역 클릭 시 상세 보기/취소 모달 오픈
+   * (연속된 일자의 동일 조건 배차를 하나의 그룹으로 묶어서 처리)
+   */
   const handleItemClick = (item) => {
+    // 권한 검사: 본인 예약이 아니거나 관리자가 아니면 차단
     if (item.MEMBER_ID !== user?.id && user?.role !== 'ADMINISTRATOR') return alert(t('dispatch.not_authorized'));
 
+    // 동일 차량, 동일 사용자의 전체 예약 내역 추출 및 연속성 확인 로직
     const allList = Object.values(dispatchData).flat().filter(d => d.LICENSE_PLATE === item.LICENSE_PLATE && d.MEMBER_ID === item.MEMBER_ID && d.DISPATCH_STATUS === 'RESERVED').sort((a, b) => new Date(a.RENTAL_DATE) - new Date(b.RENTAL_DATE));
     let groups = []; let currentGroup = [];
+    
     for (let i = 0; i < allList.length; i++) {
       if (currentGroup.length === 0) currentGroup.push(allList[i]);
       else {
@@ -99,15 +118,20 @@ const DispatchRequestPage = () => {
     if (currentGroup.length > 0) groups.push(currentGroup);
     const targetGroup = groups.find(g => g.some(d => d.DISPATCH_ID === item.DISPATCH_ID)) || [item];
 
+    // 선택된 그룹 데이터를 폼에 세팅
     setSelectedDispatchGroup(targetGroup); setIsEditMode(true); setSelectedDispatchId(item.DISPATCH_ID);
     setDateRange({ start: targetGroup[0].RENTAL_DATE.split('T')[0], end: targetGroup[targetGroup.length - 1].RENTAL_DATE.split('T')[0] });
     setFormData({ licensePlate: item.LICENSE_PLATE, region: item.REGION || '', visitPlace: item.VISIT_PLACE || '', bizType: item.BUSINESS_TYPE || item.BIZ_TYPE || '', period: item.RENTAL_PERIOD, memberName: item.MEMBER_NAME || user?.name });
     setIsPanelOpen(true);
   };
 
+  /**
+   * [이벤트 핸들러] 캘린더 빈 날짜(또는 드래그) 선택 시 신규 신청 폼 오픈
+   */
   const handleDateSelect = (arg) => {
     setIsEditMode(false); setSelectedDispatchId(null); setSelectedDispatchGroup([]);
     let startStr = typeof arg === 'string' ? arg : arg.startStr;
+    // FullCalendar 드래그 선택 시 마지막 날짜가 하루 초과되어 반환되는 현상 보정
     let endStr = typeof arg === 'string' ? arg : new Date(new Date(arg.endStr).setDate(new Date(arg.endStr).getDate() - 1)).toISOString().split('T')[0];
     
     setDateRange({ start: startStr, end: endStr });
@@ -119,6 +143,7 @@ const DispatchRequestPage = () => {
     setIsPanelOpen(true);
   };
 
+  /** [이벤트 핸들러] 배차 예약 취소 처리 */
   const handleDelete = async () => {
     if (!window.confirm(selectedDispatchGroup.length > 1 ? t('dispatch.cancel_batch_confirm', { count: selectedDispatchGroup.length }) : t('dispatch.cancel_confirm'))) return;
     try {
@@ -127,6 +152,7 @@ const DispatchRequestPage = () => {
     } catch (err) { alert(err.response?.data?.message || t('dispatch.cancel_fail')); }
   };
 
+  /** [유틸리티] 시작일과 종료일 사이의 모든 날짜 배열 반환 */
   const getDatesInRange = (start, end) => {
     const dates = []; let curr = new Date(start); const last = new Date(end);
     if (curr > last) return [start];
@@ -134,9 +160,11 @@ const DispatchRequestPage = () => {
     return dates;
   };
 
+  /** [이벤트 핸들러] 신규 배차 예약 등록 처리 */
   const handleRegister = async () => {
     if (!user?.id) return alert(t('dispatch.login_required'));
     if (!formData.licensePlate || !formData.period || !formData.bizType) return alert(t('dispatch.fill_required'));
+    
     const dates = getDatesInRange(dateRange.start, dateRange.end);
     try {
       for (const date of dates) await axios.post('/api/dispatch/register', { ...formData, memberId: user.id, rentalDate: date });
@@ -144,21 +172,30 @@ const DispatchRequestPage = () => {
     } catch (err) { alert(err.response?.data?.message || t('dispatch.register_fail')); }
   };
 
+  /** [렌더링 헬퍼] 모바일 리스트 뷰 전용 개별 아이템 렌더링 함수 */
   const renderListItem = (v, i) => (
-    <Box key={i} onClick={(e) => { e.stopPropagation(); handleItemClick(v); }} sx={{ borderLeft: '4px solid #1976d2', bgcolor: 'rgba(25, 118, 210, 0.05)', px: 1, py: 0.5, borderRadius: '0 4px 4px 0', fontSize: '13px', fontWeight: 600, color: '#1976d2', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer' }}>
-      {v.VEHICLE_NAME} ({periodMap[v.RENTAL_PERIOD] || '종일'}) - {v.MEMBER_NAME}
-    </Box>
+    <CalendarItem 
+      key={i} 
+      item={v} 
+      onClick={handleItemClick} 
+      periodMap={periodMap} 
+      mode="request" 
+      t={t} 
+    />
   );
 
+  /** [렌더링 영역] */
   return (
     <Box sx={{ p: isMobile ? 1 : 2, height: '90vh', display: 'flex', flexDirection: 'column' }}>
       
+      {/* 상단 캘린더 조작 헤더 */}
       <CalendarHeader 
         title={t('menu.dispatch_request')} currentDate={currentDate} isMobile={isMobile}
         onPrev={() => handlePrev(fetchDispatchData)} onNext={() => handleNext(fetchDispatchData)} 
         onToday={() => handleToday(fetchDispatchData)} onJumpDate={handleJump}
       />
 
+      {/* 중앙 캘린더 영역 (모바일/PC 분기) */}
       <Paper sx={{ p: isMobile ? 0 : 2, flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <Box ref={scrollContainerRef} sx={{ flexGrow: 1, overflow: 'auto' }}>
           {isMobile ? (
@@ -178,7 +215,7 @@ const DispatchRequestPage = () => {
                     dayItems={dayItems} 
                     onItemClick={handleItemClick} 
                     periodMap={periodMap} 
-                    mode="request" // ✅ 배차 요청 전용 모드
+                    mode="request" // 배차 요청 전용 모드
                   />
                 );
               }}
@@ -187,7 +224,7 @@ const DispatchRequestPage = () => {
         </Box>
       </Paper>
 
-      {/* 우측 폼 분리 적용 */}
+      {/* 우측 슬라이드 폼 패널 (신청/취소용 Drawer) */}
       <RightDrawer 
         open={isPanelOpen} onClose={() => setIsPanelOpen(false)} 
         title={isEditMode ? t('dispatch.cancel_btn') : t('menu.dispatch_request')} 

@@ -1,9 +1,9 @@
 /**
-* @file        CalendarCustom.css
-* @description 배차 신청 및 현황 조회를 위한 FullCalendar 커스텀 스타일 정의
-*/
+ * @file        CalendarCustom.css
+ * @description Core 캘린더 컴포넌트의 FullCalendar 커스텀 스타일 정의
+ */
 
-/* 요일별 색상 커스터마이징 (공휴일/주말) */
+/** [요일별 색상 커스터마이징] 공휴일 및 주말 텍스트 색상 지정 */
 .fc-day-sun .fc-daygrid-day-number,
 .fc-day-sun .fc-col-header-cell-cushion {
     color: #d32f2f !important;
@@ -14,17 +14,17 @@
     color: #1976d2 !important;
 }
 
-/* 커스텀 셀(CalendarDayCell) 렌더링을 위한 공간 확보 */
+/** [상단 레이아웃 보정] 커스텀 셀(CalendarDayCell) 렌더링을 위한 공간 확보 */
 .fc .fc-daygrid-day-top {
-    display: flex !important; /* none -> flex 로 변경 */
+    display: flex !important; /* 기본 none 속성을 flex로 변경하여 커스텀 요소 배치 허용 */
     flex-direction: column;
     width: 100% !important;
     height: 100% !important;
-    padding: 0 !important; /* 기본 여백 제거 */
-    flex-shrink: 0; /* 스크롤바가 생길 때 상단 영역이 찌그러지지 않게 방지 */
+    padding: 0 !important; /* 기본 여백을 제거하여 꽉 찬 레이아웃 구성 */
+    flex-shrink: 0; /* 내부 스크롤 발생 시 상단 영역이 찌그러지는 현상 방지 */
 }
 
-/* 날짜 숫자 링크 효과 제거 */
+/** [초기화] 날짜 숫자 텍스트의 기본 링크 효과 제거 */
 .fc .fc-daygrid-day-number {
     width: 100%;
     height: 100%;
@@ -32,19 +32,19 @@
     text-decoration: none !important;
 }
 
-/* 기본 요소 숨김 및 드래그 하이라이트 보정 */
+/** [기본 요소 숨김] FullCalendar의 기본 이벤트 및 콘텐츠 영역 제거 */
 .fc .fc-daygrid-day-events,
 .fc .fc-daygrid-day-content {
     display: none !important; 
 }
 
-/* 드래그 하이라이트 레이어 */
+/** [드래그 하이라이트 보정] 배경 선택 레이어를 커스텀 일정 뒤로 배치 */
 .fc .fc-daygrid-day-bg {
     display: block !important;
-    z-index: 1; /* 커스텀 일정 뒤에 깔리도록 */
+    z-index: 1; /* 커스텀 일정 렌더링 시 가려지지 않도록 z-index 최소화 */
 }
 
-/* 날짜 칸 내부 프레임 레이아웃 강제 확장 */
+/** [프레임 고정] 날짜 칸 내부 프레임 레이아웃 강제 확장 및 높이 고정 */
 .fc-daygrid-day-frame {
     height: 100% !important;
     min-height: 100% !important;
