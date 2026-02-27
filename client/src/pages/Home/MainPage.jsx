@@ -17,6 +17,8 @@ import '../Dispatch/CalendarCustom.css';
 // 분리한 컴포넌트들 
 import CalendarDayCell from '../../components/Dispatch/CalendarDayCell'; 
 import DispatchDetailContent from '../../components/Dispatch/DispatchDetailContent';
+// ✅ 공통 일정 블록 컴포넌트 임포트
+import CalendarItem from '../../components/Dispatch/CalendarItem';
 
 const MainPage = () => {
   const { t, i18n } = useTranslation();
@@ -60,15 +62,17 @@ const MainPage = () => {
     setIsPanelOpen(true);
   };
 
-  const renderListItem = (v, i) => {
-    const isReturned = v.DISPATCH_STATUS === 'RETURNED' || (v.ACTION_TYPE && v.ACTION_TYPE.includes('반납'));
-    const color = isReturned ? '#2e7d32' : '#1976d2';
-    return (
-      <Box key={i} onClick={(e) => { e.stopPropagation(); handleItemClick(v); }} sx={{ borderLeft: `4px solid ${color}`, bgcolor: isReturned ? 'rgba(46, 125, 50, 0.05)' : 'rgba(25, 118, 210, 0.05)', px: 1, py: 0.5, borderRadius: '0 4px 4px 0', fontSize: '13px', fontWeight: 600, color: color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer' }}>
-        {v.VEHICLE_NAME}({periodMap[v.RENTAL_PERIOD] || '종일'})_{v.MEMBER_NAME}
-      </Box>
-    );
-  };
+  // ✅ 하드코딩된 Box를 지우고 CalendarItem 컴포넌트로 통일!
+  const renderListItem = (v, i) => (
+    <CalendarItem 
+      key={i} 
+      item={v} 
+      onClick={handleItemClick} 
+      periodMap={periodMap} 
+      mode="dashboard" 
+      t={t} 
+    />
+  );
 
   return (
     <Box sx={{ p: isMobile ? 1 : 2, height: '90vh', width: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -105,7 +109,8 @@ const MainPage = () => {
                     arg={arg} 
                     dayItems={dayItems} 
                     onItemClick={handleItemClick} 
-                    periodMap={periodMap} 
+                    periodMap={periodMap}
+                    mode="dashboard" // ✅ 대시보드 모드 전달
                   />
                 );
               }}

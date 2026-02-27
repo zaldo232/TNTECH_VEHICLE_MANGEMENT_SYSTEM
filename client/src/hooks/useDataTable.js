@@ -19,7 +19,7 @@ export const useDataTable = (endpoint, searchFields = [], idField = 'id') => {
 
   /**
    * [데이터 로드 및 정규화]
-   * 서버 응답 구조가 다르더라도(배열, list 객체 등) 일관된 형태로 변환하여 상태를 업데이트합
+   * 서버 응답 구조가 다르더라도(배열, list 객체 등) 일관된 형태로 변환하여 상태를 업데이트
    */
   const fetchData = useCallback(async () => {
     try {
@@ -29,10 +29,9 @@ export const useDataTable = (endpoint, searchFields = [], idField = 'id') => {
       const rawData = Array.isArray(res.data) ? res.data : (res.data.list || res.data.data || []);
       
       /**
-       * MUI DataGrid 등 라이브러리에서 요구하는 고유 'id' 속성을 강제로 매핑합니다.
-       * 1. 지정된 idField 사용
-       * 2. 공통코드와 같은 복합키 대응 (${GROUP_CODE}_${CONTENT_CODE})
-       * 3. 최후의 수단으로 랜덤값 부여
+       * MUI DataGrid 등 라이브러리에서 요구하는 고유 'id' 속성을 강제로 매핑
+       * 지정된 idField 사용
+       * 공통코드와 같은 복합키 대응 (${GROUP_CODE}_${CONTENT_CODE})
        */
       const dataWithId = rawData.map(item => ({ 
         ...item, 
@@ -49,7 +48,7 @@ export const useDataTable = (endpoint, searchFields = [], idField = 'id') => {
 
   /**
    * [클라이언트 사이드 실시간 검색]
-   * 지정된 searchFields 배열 내의 모든 필드를 대상으로 대소문자 구분 없이 검색을 수행합니다.
+   * 지정된 searchFields 배열 내의 모든 필드를 대상으로 대소문자 구분 없이 검색을 수행
    */
   const handleSearch = (e) => {
     // 이벤트 객체(onChange)일 수도 있고, 외부에서 전달받은 문자열일 수도 있음

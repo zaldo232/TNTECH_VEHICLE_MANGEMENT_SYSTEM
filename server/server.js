@@ -63,5 +63,5 @@ app.use('/api/management', require('./routes/management')); // 차량 정기 점
 
 // 서버 포트 리스닝 시작
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });

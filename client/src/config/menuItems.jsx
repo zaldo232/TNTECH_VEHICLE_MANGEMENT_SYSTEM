@@ -50,6 +50,12 @@ export const menuConfig = [
     ]
   },
   {
+    id: 'vehicle',
+    titleKey: 'menu.vehicle_mgmt',
+    icon: <DirectionsCarIcon />,
+    path: '/admin/vehicles', // 차량 마스터 정보 관리
+  },
+  {
     id: 'history',
     titleKey: 'menu.history',
     icon: <FormatListBulletedIcon />,
@@ -61,12 +67,6 @@ export const menuConfig = [
     icon: <AssignmentIcon />,
     path: '/history/log',
     divider: true // 기록 메뉴와 마스터 관리 메뉴 간 분리
-  },
-  {
-    id: 'vehicle',
-    titleKey: 'menu.vehicle_mgmt',
-    icon: <DirectionsCarIcon />,
-    path: '/admin/vehicles', // 차량 마스터 정보 관리
   },
   {
     id: 'system',

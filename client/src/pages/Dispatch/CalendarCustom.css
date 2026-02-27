@@ -1,25 +1,30 @@
-/* 일요일 숫자 및 헤더 (빨간색) */
+/**
+* @file        CalendarCustom.css
+* @description 배차 신청 및 현황 조회를 위한 FullCalendar 커스텀 스타일 정의
+*/
+
+/* 요일별 색상 커스터마이징 (공휴일/주말) */
 .fc-day-sun .fc-daygrid-day-number,
 .fc-day-sun .fc-col-header-cell-cushion {
-  color: #d32f2f !important;
+    color: #d32f2f !important;
 }
 
-/* 토요일 숫자 및 헤더 (파란색) */
 .fc-day-sat .fc-daygrid-day-number,
 .fc-day-sat .fc-col-header-cell-cushion {
-  color: #1976d2 !important;
+    color: #1976d2 !important;
 }
 
-
+/* 커스텀 셀(CalendarDayCell) 렌더링을 위한 공간 확보 */
 .fc .fc-daygrid-day-top {
     display: flex !important; /* none -> flex 로 변경 */
     flex-direction: column;
     width: 100% !important;
     height: 100% !important;
-    padding: 0 !important;
+    padding: 0 !important; /* 기본 여백 제거 */
+    flex-shrink: 0; /* 스크롤바가 생길 때 상단 영역이 찌그러지지 않게 방지 */
 }
 
-/* 혹시 모를 내부 링크 태그 스타일 초기화 */
+/* 날짜 숫자 링크 효과 제거 */
 .fc .fc-daygrid-day-number {
     width: 100%;
     height: 100%;
@@ -27,34 +32,22 @@
     text-decoration: none !important;
 }
 
-/* 4. 불필요한 이벤트/컨텐츠만 숨김 */
-/* 주의: .fc-daygrid-day-bg는 지우면 안 됨 (드래그 하이라이트 역할) */
+/* 기본 요소 숨김 및 드래그 하이라이트 보정 */
 .fc .fc-daygrid-day-events,
 .fc .fc-daygrid-day-content {
     display: none !important; 
 }
 
-/* (선택사항) 드래그 색상이 잘 보이도록 배경 레이어 위치 보정 */
+/* 드래그 하이라이트 레이어 */
 .fc .fc-daygrid-day-bg {
     display: block !important;
-    z-index: 1; /* 컨텐츠 뒤에 깔리도록 */
+    z-index: 1; /* 커스텀 일정 뒤에 깔리도록 */
 }
 
-/* 날짜 칸 내부의 프레임 강제 확장 */
+/* 날짜 칸 내부 프레임 레이아웃 강제 확장 */
 .fc-daygrid-day-frame {
     height: 100% !important;
     min-height: 100% !important;
     display: flex;
     flex-direction: column;
-}
-
-/* 날짜 칸 내용물 영역 */
-.fc-daygrid-day-events {
-    flex-grow: 1;
-    margin: 0 !important;
-}
-
-/* 스크롤바가 생기지 않게 */
-.fc-daygrid-day-top {
-    flex-shrink: 0;
 }
